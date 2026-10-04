@@ -1,0 +1,352 @@
+/* =====================================================
+   ADEM AYEM - Sistem Kasir
+   Konsep: joglo semi modern
+   - Warna  : hijau tua (brand), cokelat kayu jati, kuningan
+   - Motif  : atap joglo bertingkat (tumpang sari), dipakai
+              di login dan logo sidebar
+   - Menu   : teks saja, tanpa ikon makanan/minuman
+   File ini menggantikan SELURUH isi style.css lama.
+   ===================================================== */
+
+/* ===== VARIABEL & RESET ===== */
+:root{
+  --bg:#EEEDE8;
+  --panel:#FFFFFF;
+  --ink:#1E2420;
+  --muted:#68706A;
+  --brand:#1F3A2E;
+  --brand-light:#2E5041;
+  --accent:#B8892B;
+  --kayu:#5A3E2B;
+  --line:#D9D8D0;
+  --danger:#A8382B;
+  --ok:#3E7A52;
+  /* siluet atap joglo bertingkat, dipakai ulang */
+  --atap:polygon(0 100%,0 72%,14% 72%,14% 44%,30% 44%,30% 16%,50% 0,70% 16%,70% 44%,86% 44%,86% 72%,100% 72%,100% 100%);
+}
+*{box-sizing:border-box;}
+html,body{height:100%;margin:0;}
+body{
+  font-family:'Plus Jakarta Sans','Segoe UI',-apple-system,Roboto,Arial,sans-serif;
+  background:var(--bg);color:var(--ink);
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+input,select,button{font-family:inherit;}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+
+/* ===== LOGIN ===== */
+#loginScreen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:60px 20px 20px;
+}
+.login-card{
+  position:relative;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-top:3px solid var(--kayu);
+  border-radius:6px;
+  padding:40px 32px 32px;
+  width:100%;max-width:360px;
+}
+.login-card::before{
+  content:"";position:absolute;
+  top:-31px;left:50%;transform:translateX(-50%);
+  width:120px;height:28px;
+  background:var(--kayu);
+  clip-path:var(--atap);
+}
+.login-card h1{
+  font-size:28px;font-weight:700;letter-spacing:-.3px;
+  margin:0 0 4px;color:var(--brand);text-align:center;
+}
+.login-card h1 span{color:inherit;}
+.login-card p.sub{margin:0 0 26px;color:var(--muted);font-size:14px;text-align:center;}
+
+/* ===== FORM ===== */
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:13px;font-weight:500;margin-bottom:6px;color:var(--ink);}
+.field input,.field select{
+  width:100%;height:42px;padding:0 12px;
+  border:1px solid var(--line);border-radius:4px;
+  font-size:14px;background:#fff;color:var(--ink);
+}
+.field input:focus,.field select:focus{outline:2px solid var(--brand);outline-offset:0;border-color:var(--brand);}
+.form-row{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;}
+.form-row .field{flex:1;min-width:140px;margin-bottom:0;}
+.filter-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:flex-end;}
+
+/* ===== TOMBOL ===== */
+.btn{border:none;border-radius:4px;padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;}
+.btn:active{transform:scale(.98);}
+.btn-primary{background:var(--brand);color:#fff;width:100%;}
+.btn-primary:hover{background:var(--brand-light);}
+.btn-accent{background:var(--accent);color:var(--ink);}
+.btn-outline{background:transparent;border:1px solid var(--line);color:var(--ink);}
+.btn-danger{background:var(--danger);color:#fff;}
+.btn-compact{width:auto !important;white-space:nowrap;}
+.form-row .btn-primary{width:auto;padding:0 30px;height:42px;}
+
+.error-msg{color:var(--danger);font-size:13px;margin-top:10px;min-height:16px;}
+.hint{font-size:12px;color:var(--muted);margin-top:18px;border-top:1px dashed var(--line);padding-top:14px;}
+
+/* ===== LAYOUT UTAMA ===== */
+#appScreen{display:none;min-height:100vh;}
+.shell{display:flex;min-height:100vh;}
+.main{flex:1;padding:24px 28px;overflow-x:auto;}
+
+/* Sidebar */
+.sidebar{
+  width:220px;background:var(--brand);color:#fff;flex-shrink:0;
+  padding:22px 14px;display:flex;flex-direction:column;gap:4px;
+  padding-top:calc(22px + env(safe-area-inset-top,0px));
+}
+.sidebar a{text-decoration:none;}
+.brand{display:flex;align-items:center;font-size:18px;font-weight:700;letter-spacing:-.2px;margin:0 8px 6px;}
+.brand::before{
+  content:"";width:24px;height:14px;margin-right:9px;flex-shrink:0;
+  background:var(--accent);clip-path:var(--atap);
+}
+.brand span{color:inherit;}
+.rolechip{font-size:11px;color:#B9C7BE;margin:0 8px 18px;text-transform:capitalize;}
+.navbtn{
+  display:block;background:transparent;border:none;border-left:3px solid transparent;
+  color:#CFDBD3;text-align:left;padding:12px 14px;border-radius:0;
+  font-size:14px;cursor:pointer;
+}
+.navbtn:hover{background:rgba(255,255,255,.07);}
+.navbtn.active{background:rgba(255,255,255,.12);border-left-color:var(--accent);color:#fff;font-weight:600;}
+.sidebar .logout{margin-top:auto;}
+
+/* Topbar */
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.topbar h2{margin:0;font-size:21px;font-weight:700;letter-spacing:-.2px;}
+.userchip{font-size:13px;color:var(--muted);}
+
+/* ===== DASHBOARD ===== */
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:22px;}
+.stat-card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px 18px;}
+.stat-card .num{font-size:26px;font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums;}
+.stat-card .lbl{font-size:13px;color:var(--muted);margin-top:2px;}
+.stat-card.warn .num{color:var(--danger);}
+.stat-card .delta{font-size:12px;margin-top:4px;}
+.delta.up{color:var(--ok);}
+.delta.down{color:var(--danger);}
+
+/* ===== PANEL ===== */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:24px;margin-bottom:18px;}
+.panel h3{margin:0 0 18px;padding-bottom:14px;font-size:15px;font-weight:700;border-bottom:1px solid var(--line);}
+.panel h3.section-title{margin-top:24px;padding-top:16px;}
+.empty{color:var(--muted);font-size:13.5px;padding:20px 0;text-align:center;}
+
+/* ===== TABEL ===== */
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th,td{text-align:left;padding:13px 12px;border-bottom:1px solid var(--line);white-space:nowrap;}
+th{background:#F6F5F0;color:var(--muted);font-weight:600;font-size:12.5px;border-bottom:2px solid var(--line);}
+td{font-variant-numeric:tabular-nums;}
+tbody tr:hover{background:#FAF9F5;}
+
+/* Tombol Ubah / Hapus */
+.row-actions button{
+  background:#fff;border:1px solid var(--line);color:var(--brand);
+  border-radius:4px;padding:6px 14px;font-size:12.5px;font-weight:600;
+  cursor:pointer;margin-right:6px;
+}
+.row-actions button:hover{border-color:var(--brand);background:#E8EEEA;}
+.row-actions button.del{color:var(--danger);}
+.row-actions button.del:hover{border-color:var(--danger);background:#F8E9E6;}
+
+/* ===== TAG ===== */
+.tag{padding:2px 8px;border-radius:3px;font-size:11.5px;font-weight:600;}
+.tag-makanan{background:#F3E6CC;color:#7A5410;}
+.tag-minuman{background:#DCEBE3;color:#2C6448;}
+.tag-gudang{background:#E6E0D2;color:#5E4F2A;}
+.tag-menu{background:#E8EEEA;color:var(--brand-light);}
+.tag-superadmin{background:#E9DCF5;color:#6A3AA8;}
+.tag-administrator{background:#DCE7F5;color:#2A5A9C;}
+.tag-kasir{background:#EFE3D6;color:#7A4A22;}
+
+/* ===== MENU: TEKS SAJA, TANPA IKON ===== */
+table:has(#menuBody) th:first-child,
+table:has(#menuBody) td:first-child{display:none;}
+.field:has(#emojiPick){display:none;}
+.emoji-pick{display:none;}
+.prod-card .emoji,.cart-item .emoji{display:none;}
+
+/* ===== LAYOUT KELOLA MENU: dua kolom =====
+   Urutan kolom tabel: 1 Gbr (disembunyikan), 2 Kode, 3 Nama,
+   4 Kategori, 5 Harga, 6 Aksi */
+.menu-page{
+  display:grid;
+  grid-template-columns:300px 1fr;
+  gap:20px;
+  align-items:start;
+}
+.menu-page .panel{margin-bottom:0;min-width:0;}
+.menu-page .panel:first-child{position:sticky;top:20px;}
+.menu-page .panel:last-child{overflow-x:auto;}
+
+.menu-page .form-row{flex-direction:column;align-items:stretch;gap:14px;}
+.menu-page .form-row .field{min-width:0;}
+.menu-page .form-row .btn-primary{width:100%;height:44px;}
+
+/* kode menu */
+.menu-page td:nth-child(2){
+  font-family:'Courier New',monospace;font-size:12.5px;font-weight:700;
+  color:var(--kayu);letter-spacing:.5px;
+}
+/* harga & aksi rata kanan */
+.menu-page th:nth-child(5),.menu-page td:nth-child(5),
+.menu-page th:nth-child(6),.menu-page td:nth-child(6){text-align:right;}
+.menu-page td:nth-child(5){font-weight:700;color:var(--brand);}
+
+@media(max-width:1000px){
+  .menu-page{grid-template-columns:1fr;}
+  .menu-page .panel:first-child{position:static;}
+}
+
+/* ===== KASIR (POS): menu berbentuk daftar baris ===== */
+.pos-layout{display:flex;gap:18px;flex-wrap:wrap;}
+.pos-products{flex:2;min-width:280px;}
+.pos-cart{flex:1;min-width:260px;position:sticky;top:20px;align-self:flex-start;}
+.pos-toolbar{display:flex;gap:8px;margin-bottom:10px;align-items:stretch;}
+.pos-toolbar .pos-search{margin-bottom:0;flex:1;}
+.pos-search{width:100%;height:42px;padding:0 12px;border:1px solid var(--line);border-radius:4px;font-size:13.5px;margin-bottom:10px;}
+
+.cat-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.cat-tab{padding:8px 16px;border-radius:4px;border:1px solid var(--line);background:#fff;font-size:13px;cursor:pointer;}
+.cat-tab.active{background:var(--brand);color:#fff;border-color:var(--brand);}
+
+.prod-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(270px,1fr));
+  gap:8px;
+}
+.prod-card{
+  display:grid;
+  grid-template-columns:1fr auto;
+  grid-template-areas:"nama harga" "stok stok";
+  align-items:center;
+  row-gap:4px;
+  padding:12px 16px;text-align:left;
+  border:1px solid var(--line);border-bottom:3px solid var(--kayu);
+  border-radius:6px;background:#fff;cursor:pointer;
+}
+.prod-card:hover{border-color:var(--brand);border-bottom-color:var(--accent);}
+.prod-card .name{grid-area:nama;font-weight:600;font-size:14px;line-height:1.3;margin:0;}
+.prod-card .price{grid-area:harga;color:var(--brand);font-weight:700;font-size:14px;margin:0;font-variant-numeric:tabular-nums;}
+.prod-card .stock{grid-area:stok;font-size:11px;color:var(--muted);margin:0;}
+
+.cart-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13.5px;}
+.qty-ctrl button{width:22px;height:22px;border:1px solid var(--line);background:#fff;border-radius:3px;cursor:pointer;}
+.total-row{display:flex;justify-content:space-between;font-size:17px;font-weight:700;margin:14px 0;color:var(--brand);font-variant-numeric:tabular-nums;}
+.rline-mini{display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted);padding:2px 0;}
+
+.paymethods{display:flex;gap:8px;margin-bottom:12px;}
+.paymethods button{flex:1;padding:9px;border:1px solid var(--line);background:#fff;border-radius:4px;cursor:pointer;font-size:13px;}
+.paymethods button.sel{border-color:var(--accent);background:#F3E9CF;font-weight:600;}
+
+/* ===== STOK ===== */
+.stock-adjust{display:flex;align-items:center;gap:8px;}
+.stock-adjust button{width:24px;height:24px;border:1px solid var(--line);background:#fff;border-radius:3px;cursor:pointer;font-weight:700;}
+.stock-adjust button:hover{border-color:var(--brand);}
+.stock-adjust .val{min-width:26px;text-align:center;font-weight:600;}
+
+/* ===== MODAL & PEMBAYARAN (satu blok, jangan diduplikasi) ===== */
+.modal-overlay{
+  position:fixed;top:0;right:0;bottom:0;left:0;z-index:9999;
+  display:flex;align-items:center;justify-content:center;
+  padding:16px;background:rgba(20,26,22,.45);
+}
+.modal-box{
+  position:relative;background:#fff;
+  width:100%;max-width:460px;max-height:90vh;overflow-y:auto;
+  padding:28px;border-radius:8px;border-top:3px solid var(--kayu);
+  box-shadow:0 20px 50px rgba(0,0,0,.25);
+}
+.modal-box h3{margin:0 0 16px;font-size:18px;font-weight:700;color:var(--brand);text-align:center;}
+.modal-close{position:absolute;top:14px;right:16px;cursor:pointer;color:var(--muted);font-size:16px;}
+.modal-box .btn-primary{height:46px;font-size:14.5px;}
+
+/* Metode pembayaran: tanpa ikon */
+.pm-ic{display:none;}
+.paymethod-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0;}
+.paymethod-card{
+  display:block;padding:14px 16px;text-align:left;cursor:pointer;
+  background:#fff;border:1px solid var(--line);border-radius:6px;
+  font-weight:600;font-size:14px;
+}
+.paymethod-card:hover{border-color:var(--brand);}
+.paymethod-card.sel{background:var(--brand);border-color:var(--brand);color:#fff;}
+.paymethod-card .pm-sub{display:block;margin-top:3px;font-size:11.5px;font-weight:400;color:var(--muted);}
+.paymethod-card.sel .pm-sub{color:#B9C7BE;}
+
+/* Nominal cepat */
+.quick-amt-row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px;}
+.quick-amt-row button{
+  padding:9px 14px;background:#fff;border:1px solid var(--line);border-radius:4px;
+  font-size:12.5px;font-weight:500;cursor:pointer;font-variant-numeric:tabular-nums;
+}
+.quick-amt-row button:hover{border-color:var(--brand);background:#E8EEEA;}
+
+/* Kembalian */
+.change-box{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:16px;padding:14px 16px;
+  background:#F6F5F0;border:1px solid var(--line);border-radius:6px;
+  font-size:15px;color:var(--ink);font-variant-numeric:tabular-nums;
+}
+.change-box b,.change-box strong{color:var(--brand);font-size:17px;}
+
+/* ===== STRUK ===== */
+.receipt-onscreen{
+  background:#FBFAF6;border:1px dashed var(--line);border-radius:4px;
+  padding:16px;margin:14px 0;
+  font-family:'Courier New',monospace;font-size:12.5px;
+}
+.receipt-onscreen .rline{display:flex;justify-content:space-between;padding:1px 0;}
+.menu-qr-text{text-align:left;background:#F3F2EC;border-radius:4px;padding:10px 12px;font-size:12px;max-height:150px;overflow:auto;white-space:pre-wrap;margin:12px 0 0;}
+
+#receiptPrint{display:none;}
+body.print-receipt-mode #appScreen{display:none !important;}
+body.print-receipt-mode #receiptPrint{display:block;}
+.receipt{width:280px;margin:0 auto;font-family:'Courier New',monospace;font-size:12px;padding:16px;color:#000;}
+.receipt h2{text-align:center;margin:0 0 4px;font-size:15px;}
+.receipt hr{border:none;border-top:1px dashed #000;margin:8px 0;}
+.receipt .rline{display:flex;justify-content:space-between;padding:2px 0;}
+.receipt .center{text-align:center;}
+
+/* ===== LAPORAN (grafik) ===== */
+.bar-chart{display:flex;align-items:flex-end;gap:10px;height:220px;padding-top:20px;}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;}
+.bar-col .bv{font-size:11.5px;color:var(--muted);margin-bottom:4px;}
+.bar-col .bar{width:100%;max-width:38px;background:var(--brand);border-radius:3px 3px 0 0;}
+.bar-col .bar.peak{background:var(--accent);}
+.bar-col .bd{font-size:12px;color:var(--muted);margin-top:6px;}
+
+.donut-wrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+.donut{width:130px;height:130px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;}
+.donut .inner{width:74px;height:74px;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:17px;color:var(--brand);}
+.donut .inner span{font-size:10px;font-weight:400;color:var(--muted);}
+.legend-row{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:6px;}
+.legend-dot{width:9px;height:9px;border-radius:50%;display:inline-block;margin-right:6px;}
+
+/* ===== RESPONSIF ===== */
+@media(max-width:720px){
+  .shell{flex-direction:column;}
+  .sidebar{width:100%;flex-direction:row;overflow-x:auto;padding:12px;}
+  .navbtn{border-left:none;border-bottom:3px solid transparent;white-space:nowrap;}
+  .navbtn.active{border-bottom-color:var(--accent);}
+  .brand,.rolechip{display:none;}
+  .sidebar .logout{margin-top:0;}
+  .main{padding:16px;}
+  .pos-cart{position:static;}
+}
+
+/* ===== CETAK LAPORAN ===== */
+@media print{
+  .sidebar,.topbar,.filter-row,.btn{display:none !important;}
+  .main{padding:0;}
+  #page-dashboard,#page-kasir,#page-stok,#page-pengguna,#page-menu,#page-profil{display:none !important;}
+  #page-laporan{display:block !important;}
+}
