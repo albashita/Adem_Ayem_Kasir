@@ -53,16 +53,12 @@ const NAV=[
   {key:'dashboard',label:'Dashboard',roles:['superadmin','administrator']},
   {key:'pengguna',label:'Pengguna & Akses',roles:['superadmin']},
   {key:'menu',label:'Kelola Menu',roles:['superadmin']},
-  {key:'stok-makanan',label:'Stok Makanan',roles:['administrator']},
-  {key:'stok-minuman',label:'Stok Minuman',roles:['administrator']},
-  {key:'stok-gudang',label:'Stok Gudang',roles:['administrator']},
+  {key:'stok',label:'Stok Barang',roles:['administrator']},
   {key:'kasir',label:'Kasir',roles:['kasir']},
   {key:'laporan',label:'Laporan',roles:['superadmin','administrator','kasir']},
   {key:'profil',label:'Profil Saya',roles:['superadmin','administrator','kasir']}
 ];
 const titles={}; NAV.forEach(n=>titles[n.key]=n.label);
-// Ketiga laman stok berbagi satu div fisik "page-stok"; ini memetakan kunci nav -> id div
-const PAGE_DIV={'stok-makanan':'stok','stok-minuman':'stok','stok-gudang':'stok'};
 const CAT_LABEL={makanan:'Makanan',minuman:'Minuman',gudang:'Gudang'};
 let currentStokCategory='makanan';
 
@@ -71,63 +67,77 @@ function doLogin(){
   const p=document.getElementById('loginPass').value;
   const err=document.getElementById('loginError');
   const found=getUsers().find(x=>x.username===u && x.password===p);
-  if(found){ sessionStorage.setItem(LSS, found.id); err.textContent=''; enterApp(found); }
-  else { err.textContent='Username atau password salah.'; }
+  if(found){
+    sessionStorage.setItem(LSS, found.id);
+    err.textContent='';
+    const first=NAV.find(n=>n.roles.includes(found.role));
+    window.location.href = ROUTE_URLS[first.key] || ROUTE_URLS.dashboard;
+  } else {
+    err.textContent='Username atau password salah.';
+  }
 }
-function doLogout(){
+function logoutUser(){
   sessionStorage.removeItem(LSS);
-  document.getElementById('appScreen').style.display='none';
-  document.getElementById('loginScreen').style.display='flex';
-  document.getElementById('loginUser').value=''; document.getElementById('loginPass').value='';
+  window.location.href = ROUTE_URLS.login;
 }
+
+// Membangun sidebar sesuai role yang login, dengan link <a href> sungguhan
+// (bukan tombol SPA) karena tiap menu di Laravel adalah route/URL sendiri.
 function buildSidebar(role){
   const nav=document.getElementById('sidebarNav');
   nav.innerHTML=`<div class="brand">Adem<span> Ayem</span></div><div class="rolechip" id="roleChip">${role}</div>`;
   NAV.filter(n=>n.roles.includes(role)).forEach(n=>{
-    const b=document.createElement('button');
-    b.className='navbtn'; b.dataset.page=n.key; b.textContent=n.label;
-    b.onclick=()=>showPage(n.key);
-    nav.appendChild(b);
+    const a=document.createElement('a');
+    a.className='navbtn'+(n.key===PAGE_KEY?' active':'');
+    a.href=ROUTE_URLS[n.key];
+    a.textContent=n.label;
+    nav.appendChild(a);
   });
   const lo=document.createElement('button');
-  lo.className='navbtn logout'; lo.textContent='Keluar'; lo.onclick=doLogout;
+  lo.className='navbtn logout'; lo.textContent='Keluar'; lo.onclick=logoutUser;
   nav.appendChild(lo);
 }
-function enterApp(user){
-  document.getElementById('loginScreen').style.display='none';
-  document.getElementById('appScreen').style.display='block';
-  document.getElementById('userChip').textContent=user.name+' ('+user.role+')';
-  seedIfEmpty();
-  buildSidebar(user.role);
-  const first=NAV.find(n=>n.roles.includes(user.role));
-  showPage(first.key);
-}
 
-const PAGES=['dashboard','pengguna','menu','stok','kasir','laporan','profil'];
-function showPage(page){
+// Dipanggil sekali di tiap halaman aplikasi (lihat bagian paling bawah file ini).
+// Mengecek sesi login & hak akses role untuk PAGE_KEY halaman ini, lalu
+// menyiapkan sidebar/topbar dan memanggil fungsi render khusus halaman tsb.
+function bootstrapPage(){
   const user=currentUser();
-  if(!NAV.find(n=>n.key===page).roles.includes(user.role)) return;
-  const divId=PAGE_DIV[page]||page;
-  PAGES.forEach(p=>document.getElementById('page-'+p).style.display=(p===divId)?'block':'none');
-  document.querySelectorAll('.navbtn[data-page]').forEach(b=>b.classList.toggle('active', b.dataset.page===page));
-  document.getElementById('pageTitle').textContent=titles[page];
-  if(page==='dashboard') renderDashboard();
-  if(page==='pengguna') renderUsers();
-  if(page==='menu') renderMenuAdmin();
-  if(page.startsWith('stok-')){ currentStokCategory=page.replace('stok-',''); renderStok(); }
-  if(page==='kasir') renderPOS();
-  if(page==='profil') renderProfil();
-  if(page==='laporan'){
-    const isSuper=currentUser().role==='superadmin';
-    document.getElementById('reportAnalyticsSection').style.display = isSuper ? 'block' : 'none';
+  if(!user){ window.location.href = ROUTE_URLS.login; return; }
+
+  const navItem = NAV.find(n=>n.key===PAGE_KEY);
+  if(!navItem || !navItem.roles.includes(user.role)){
+    const first=NAV.find(n=>n.roles.includes(user.role));
+    window.location.href = first ? ROUTE_URLS[first.key] : ROUTE_URLS.login;
+    return;
+  }
+
+  buildSidebar(user.role);
+  document.getElementById('userChip').textContent=user.name+' ('+user.role+')';
+  const titleEl=document.getElementById('pageTitle');
+  if(titleEl) titleEl.textContent=titles[PAGE_KEY];
+
+  if(PAGE_KEY==='dashboard') renderDashboard();
+  if(PAGE_KEY==='pengguna') renderUsers();
+  if(PAGE_KEY==='menu') renderMenuAdmin();
+  if(PAGE_KEY==='stok') renderStok();
+  if(PAGE_KEY==='kasir') renderPOS();
+  if(PAGE_KEY==='profil') renderProfil();
+  if(PAGE_KEY==='laporan'){
+    const isSuper=user.role==='superadmin';
+    const sec=document.getElementById('reportAnalyticsSection');
+    if(sec) sec.style.display = isSuper ? 'block' : 'none';
     if(isSuper) renderReportAnalytics();
-    if(!document.getElementById('repFrom').value){
+    const from=document.getElementById('repFrom');
+    if(from && !from.value){
       const today=new Date().toISOString().slice(0,10);
-      document.getElementById('repFrom').value=today; document.getElementById('repTo').value=today;
+      from.value=today; document.getElementById('repTo').value=today;
     }
     renderReport();
   }
 }
+
+function selectStokCat(c){ currentStokCategory=c; renderStok(); }
 
 function renderDashboard(){
   const menu=getMenu(), trx=getTrx();
@@ -209,6 +219,7 @@ function deleteMenu(id){ if(!confirm('Hapus menu ini?')) return; setMenu(getMenu
 
 let editingInvId=null;
 function renderStok(){
+  document.querySelectorAll('#stokCatTabs .cat-tab').forEach(b=>b.classList.toggle('active', b.dataset.c===currentStokCategory));
   const catLabel=CAT_LABEL[currentStokCategory];
   document.getElementById('stokFormTitle').textContent='Tambah Barang '+catLabel+' Baru';
   document.getElementById('stokListTitle').textContent='Daftar & Status Stok '+catLabel;
@@ -579,8 +590,14 @@ function saveProfile(){
 }
 
 seedIfEmpty();
-if(sessionStorage.getItem(LSS)){ const u=currentUser(); if(u) enterApp(u); }
-document.getElementById('loginPass').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+if(document.getElementById('loginScreen')){
+  // Halaman login: cuma perlu wiring submit, tidak ada guard role di sini.
+  const passEl=document.getElementById('loginPass');
+  if(passEl) passEl.addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+} else if(typeof PAGE_KEY !== 'undefined'){
+  // Halaman aplikasi (dashboard/menu/stok/kasir/laporan/profil/pengguna).
+  bootstrapPage();
+}
 
 /* ===== QR MENU ===== */
 function buildMenuText(){
