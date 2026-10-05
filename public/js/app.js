@@ -167,15 +167,16 @@ function renderDashboard(){
   const today=new Date().toISOString().slice(0,10);
   const todayTrx=trx.filter(t=>t.date.slice(0,10)===today);
   const todaySales=todayTrx.reduce((s,t)=>s+t.total,0);
-  const lowStock=menu.filter(p=>p.stock<=5);
+  // stok bahan mentah (inventori) yang menipis atau habis
+  const lowStock=getInv().filter(p=>p.stock<=5).sort((a,b)=>a.stock-b.stock);
   document.getElementById('dashStats').innerHTML=`
     <div class="stat-card"><div class="num">${menu.length}</div><div class="lbl">Total Menu</div></div>
     <div class="stat-card"><div class="num">${rupiah(todaySales)}</div><div class="lbl">Penjualan Hari Ini</div></div>
     <div class="stat-card"><div class="num">${todayTrx.length}</div><div class="lbl">Transaksi Hari Ini</div></div>
-    <div class="stat-card ${lowStock.length?'warn':''}"><div class="num">${lowStock.length}</div><div class="lbl">Menu Stok Menipis</div></div>`;
+    <div class="stat-card ${lowStock.length?'warn':''}"><div class="num">${lowStock.length}</div><div class="lbl">Stok Bahan Menipis</div></div>`;
   document.getElementById('lowStockBody').innerHTML = lowStock.length ? lowStock.map(p=>`
-    <tr><td>${p.name}</td><td><span class="tag tag-menu">${p.category}</span></td><td>${p.stock}</td></tr>`).join('')
-    : `<tr><td colspan="3" class="empty">Semua stok aman</td></tr>`;
+    <tr><td>${p.name}</td><td><span class="tag tag-${p.category}">${CAT_LABEL[p.category]||p.category}</span></td><td>${p.stock}</td><td>${p.unit}</td></tr>`).join('')
+    : `<tr><td colspan="4" class="empty">Semua stok aman</td></tr>`;
 }
 
 let editingUserId=null;
