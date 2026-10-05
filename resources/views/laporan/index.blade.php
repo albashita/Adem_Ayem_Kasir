@@ -4,6 +4,9 @@
 @section('page-title', 'Laporan')
 
 @section('content')
+
+{{-- ===== LAPORAN KEUANGAN (superadmin & kasir) ===== --}}
+<div id="financeReport">
       <div id="reportAnalyticsSection">
       <div class="grid">
         <div class="stat-card"><div class="lbl">Penjualan Hari Ini</div><div class="num" id="repTodaySales">Rp 0</div><div class="delta" id="repTodayDelta">–</div></div>
@@ -47,6 +50,44 @@
         <h3 class="section-title">Riwayat Transaksi</h3>
         <table><thead><tr><th>Tanggal</th><th>Item</th><th>Bayar</th><th>Total</th></tr></thead><tbody id="repBody"></tbody></table>
       </div>
-    
+</div>
+
+{{-- ===== LAPORAN STOK (administrator) ===== --}}
+<div id="stockReport" style="display:none;">
+  <div class="panel">
+    <div class="filter-row">
+      <div class="field"><label>Kategori</label>
+        <select id="stCat" onchange="renderStockReport()">
+          <option value="">Semua</option>
+          <option value="makanan">Makanan</option>
+          <option value="minuman">Minuman</option>
+          <option value="gudang">Gudang</option>
+        </select>
+      </div>
+      <div class="field"><label>Dari Tanggal</label><input type="date" id="stFrom"></div>
+      <div class="field"><label>Sampai Tanggal</label><input type="date" id="stTo"></div>
+      <div class="field" style="flex:0 0 auto;"><label>&nbsp;</label><button class="btn btn-outline btn-compact" onclick="renderStockReport()">Terapkan Filter</button></div>
+      <div class="field" style="flex:0 0 auto;"><label>&nbsp;</label><button class="btn btn-primary btn-compact" onclick="window.print()">Unduh / Cetak PDF</button></div>
+    </div>
+
+    <div class="grid">
+      <div class="stat-card"><div class="num" id="stTotal">0</div><div class="lbl">Jenis Barang</div></div>
+      <div class="stat-card"><div class="num" id="stAman">0</div><div class="lbl">Stok Aman</div></div>
+      <div class="stat-card warn"><div class="num" id="stMenipis">0</div><div class="lbl">Stok Menipis</div></div>
+      <div class="stat-card warn"><div class="num" id="stHabis">0</div><div class="lbl">Stok Habis</div></div>
+      <div class="stat-card"><div class="num" id="stMasuk">0</div><div class="lbl">Barang Masuk (periode)</div></div>
+      <div class="stat-card"><div class="num" id="stKeluar">0</div><div class="lbl">Barang Keluar (periode)</div></div>
+    </div>
+
+    <h3 class="section-title">Status Stok Barang</h3>
+    <table><thead><tr><th>Barang</th><th>Kategori</th><th>Stok</th><th>Satuan</th><th>Status</th></tr></thead><tbody id="stListBody"></tbody></table>
+
+    <h3 class="section-title">Stok Menu Siap Jual</h3>
+    <table><thead><tr><th>Kode</th><th>Menu</th><th>Kategori</th><th>Stok (porsi)</th><th>Status</th></tr></thead><tbody id="stMenuBody"></tbody></table>
+
+    <h3 class="section-title">Riwayat Pergerakan Stok</h3>
+    <table><thead><tr><th>Tanggal</th><th>Barang</th><th>Jenis</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr></thead><tbody id="stLogBody"></tbody></table>
+  </div>
+</div>
 
 @endsection

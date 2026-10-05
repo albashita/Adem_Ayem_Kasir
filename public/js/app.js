@@ -49,6 +49,20 @@ function setInv(i){localStorage.setItem(LSI, JSON.stringify(i));}
 function rupiah(n){return 'Rp ' + Number(n).toLocaleString('id-ID');}
 function currentUser(){const id=sessionStorage.getItem(LSS); return getUsers().find(u=>u.id===id);}
 
+// Kode menu: dibuat otomatis dari 3 huruf awal kategori (mis. NAS-01, MIN-02)
+function genMenuCode(category, menu){
+  const pre=(category||'MNU').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase().padEnd(3,'X');
+  let n=1, code;
+  do { code=pre+'-'+String(n).padStart(2,'0'); n++; } while(menu.some(p=>p.code===code));
+  return code;
+}
+// Memberi kode ke menu lama yang belum punya kode
+function ensureMenuCodes(){
+  const menu=getMenu(); let changed=false;
+  menu.forEach(p=>{ if(!p.code){ p.code=genMenuCode(p.category,menu); changed=true; } });
+  if(changed) setMenu(menu);
+}
+
 const NAV=[
   {key:'dashboard',label:'Dashboard',roles:['superadmin','administrator']},
   {key:'pengguna',label:'Pengguna & Akses',roles:['superadmin']},
@@ -90,7 +104,7 @@ function buildSidebar(role){
     const a=document.createElement('a');
     a.className='navbtn'+(n.key===PAGE_KEY?' active':'');
     a.href=ROUTE_URLS[n.key];
-    a.textContent=n.label;
+    a.textContent=(n.key==='laporan' && role==='administrator') ? 'Laporan Stok' : n.label;
     nav.appendChild(a);
   });
   const lo=document.createElement('button');
@@ -124,16 +138,25 @@ function bootstrapPage(){
   if(PAGE_KEY==='kasir') renderPOS();
   if(PAGE_KEY==='profil') renderProfil();
   if(PAGE_KEY==='laporan'){
+    const isAdmin=user.role==='administrator';
     const isSuper=user.role==='superadmin';
-    const sec=document.getElementById('reportAnalyticsSection');
-    if(sec) sec.style.display = isSuper ? 'block' : 'none';
-    if(isSuper) renderReportAnalytics();
-    const from=document.getElementById('repFrom');
-    if(from && !from.value){
-      const today=new Date().toISOString().slice(0,10);
-      from.value=today; document.getElementById('repTo').value=today;
+    // administrator: laporan stok. superadmin & kasir: laporan keuangan.
+    document.getElementById('financeReport').style.display = isAdmin ? 'none' : 'block';
+    document.getElementById('stockReport').style.display   = isAdmin ? 'block' : 'none';
+    if(titleEl && isAdmin) titleEl.textContent='Laporan Stok';
+    const today=new Date().toISOString().slice(0,10);
+    if(isAdmin){
+      document.getElementById('stFrom').value=today.slice(0,8)+'01';
+      document.getElementById('stTo').value=today;
+      renderStockReport();
+    } else {
+      const sec=document.getElementById('reportAnalyticsSection');
+      if(sec) sec.style.display = isSuper ? 'block' : 'none';
+      if(isSuper) renderReportAnalytics();
+      const from=document.getElementById('repFrom');
+      if(from && !from.value){ from.value=today; document.getElementById('repTo').value=today; }
+      renderReport();
     }
-    renderReport();
   }
 }
 
@@ -195,23 +218,27 @@ function pickEmoji(e){ menuEmoji=e; buildEmojiPick(); }
 function renderMenuAdmin(){
   buildEmojiPick();
   document.getElementById('menuBody').innerHTML = getMenu().map(p=>`
-    <tr><td style="font-size:18px">${p.emoji||'🍽️'}</td><td>${p.name}</td><td><span class="tag tag-menu">${p.category}</span></td><td>${rupiah(p.price)}</td>
+    <tr><td style="font-size:18px">${p.emoji||'🍽️'}</td><td>${p.code||'-'}</td><td>${p.name}</td><td><span class="tag tag-menu">${p.category}</span></td><td>${rupiah(p.price)}</td>
     <td class="row-actions"><button onclick="editMenu('${p.id}')">Ubah</button><button class="del" onclick="deleteMenu('${p.id}')">Hapus</button></td></tr>`).join('');
 }
 function saveMenu(){
   const name=document.getElementById('mName').value.trim();
   const category=document.getElementById('mCat').value.trim()||'Lainnya';
   const price=Number(document.getElementById('mPrice').value);
+  let code=document.getElementById('mCode').value.trim().toUpperCase();
   if(!name||!price){alert('Nama dan harga wajib diisi.');return;}
   let menu=getMenu();
-  if(editingMenuId){ menu=menu.map(p=>p.id===editingMenuId?{...p,name,category,price,emoji:menuEmoji}:p); editingMenuId=null; document.getElementById('mSaveBtn').textContent='Simpan'; }
-  else{ menu.push({id:'m'+Date.now(),name,category,price,stock:0,emoji:menuEmoji}); }
+  if(!code) code=genMenuCode(category,menu);
+  if(menu.some(p=>p.code===code && p.id!==editingMenuId)){alert('Kode menu sudah dipakai.');return;}
+  if(editingMenuId){ menu=menu.map(p=>p.id===editingMenuId?{...p,code,name,category,price,emoji:menuEmoji}:p); editingMenuId=null; document.getElementById('mSaveBtn').textContent='Simpan'; }
+  else{ menu.push({id:'m'+Date.now(),code,name,category,price,stock:0,emoji:menuEmoji}); }
   setMenu(menu);
-  document.getElementById('mName').value=''; document.getElementById('mPrice').value=''; menuEmoji='🍽️';
+  document.getElementById('mCode').value=''; document.getElementById('mName').value=''; document.getElementById('mPrice').value=''; menuEmoji='🍽️';
   renderMenuAdmin();
 }
 function editMenu(id){
   const p=getMenu().find(x=>x.id===id); if(!p) return;
+  document.getElementById('mCode').value=p.code||'';
   document.getElementById('mName').value=p.name; document.getElementById('mCat').value=p.category; document.getElementById('mPrice').value=p.price;
   menuEmoji=p.emoji||'🍽️'; editingMenuId=id; document.getElementById('mSaveBtn').textContent='Update'; buildEmojiPick();
 }
@@ -238,14 +265,28 @@ function renderStok(){
     return `<tr><td>${new Date(l.date).toLocaleString('id-ID')}</td><td>${it?it.name:'-'}</td><td>${l.type==='masuk'?'Masuk':'Keluar'}</td><td>${l.qty}</td><td>${it?it.unit:'-'}</td><td>${l.note||'-'}</td></tr>`;
   }).join('') : `<tr><td colspan="6" class="empty">Belum ada riwayat</td></tr>`;
 }
+function addStockLog(itemId,type,qty,note){
+  const log=getLog();
+  log.push({id:'l'+Date.now()+Math.floor(Math.random()*1000),date:new Date().toISOString(),itemId,type,qty,note:note||''});
+  setLog(log);
+}
 function saveInventoryItem(){
   const name=document.getElementById('iName').value.trim();
   const unit=document.getElementById('iUnit').value.trim();
   const stock=Number(document.getElementById('iStock').value)||0;
   if(!name||!unit){alert('Nama barang dan satuan wajib diisi.');return;}
   let inv=getInv();
-  if(editingInvId){ inv=inv.map(p=>p.id===editingInvId?{...p,name,unit,stock}:p); editingInvId=null; document.getElementById('iSaveBtn').textContent='Simpan'; }
-  else{ inv.push({id:'i'+Date.now(),name,category:currentStokCategory,unit,stock}); }
+  if(editingInvId){
+    const old=inv.find(p=>p.id===editingInvId);
+    const diff=old ? stock-old.stock : 0;
+    inv=inv.map(p=>p.id===editingInvId?{...p,name,unit,stock}:p);
+    if(diff!==0) addStockLog(editingInvId, diff>0?'masuk':'keluar', Math.abs(diff), 'Koreksi stok');
+    editingInvId=null; document.getElementById('iSaveBtn').textContent='Simpan';
+  } else {
+    const id='i'+Date.now();
+    inv.push({id,name,category:currentStokCategory,unit,stock});
+    if(stock>0) addStockLog(id,'masuk',stock,'Stok awal');
+  }
   setInv(inv);
   document.getElementById('iName').value=''; document.getElementById('iUnit').value=''; document.getElementById('iStock').value='';
   renderStok();
@@ -265,9 +306,7 @@ function quickAdjust(id,delta){
   if(delta<0 && item.stock<=0) return;
   inv=inv.map(p=>p.id===id?{...p,stock:p.stock+delta}:p);
   setInv(inv);
-  const log=getLog();
-  log.push({id:'l'+Date.now(),date:new Date().toISOString(),itemId:id,type:delta>0?'masuk':'keluar',qty:1,note:''});
-  setLog(log);
+  addStockLog(id, delta>0?'masuk':'keluar', 1, '');
   renderStok();
 }
 
@@ -277,10 +316,10 @@ function renderPOS(){
   document.getElementById('posCatTabs').innerHTML = cats.map(c=>
     `<button class="cat-tab ${c===currentPosCategory?'active':''}" onclick="selectPosCat('${c}')">${c==='semua'?'Semua':c}</button>`).join('');
   const search=(document.getElementById('posSearch')?.value||'').toLowerCase();
-  const filtered=menu.filter(p=> (currentPosCategory==='semua'||p.category===currentPosCategory) && p.name.toLowerCase().includes(search));
+  const filtered=menu.filter(p=> (currentPosCategory==='semua'||p.category===currentPosCategory) && (p.name.toLowerCase().includes(search) || (p.code||'').toLowerCase().includes(search)));
   document.getElementById('posProductGrid').innerHTML = filtered.length ? filtered.map(p=>`
     <div class="prod-card" onclick="addToCart('${p.id}')">
-      <div class="emoji">${p.emoji||'🍽️'}</div><div class="name">${p.name}</div>
+      <div class="emoji">${p.emoji||'🍽️'}</div><div class="code">${p.code||''}</div><div class="name">${p.name}</div>
       <div class="price">${rupiah(p.price)}</div><div class="stock">Stok: ${p.stock}</div></div>`).join('')
     : `<div class="empty">Menu tidak ditemukan</div>`;
   document.querySelectorAll('#orderTypeToggle button').forEach(b=>b.classList.toggle('sel', b.dataset.t===selectedOrderType));
@@ -505,7 +544,7 @@ function renderReportAnalytics(){
     </div>`).join('');
 
   // Metode pembayaran (semua transaksi)
-  const payColors={tunai:'#1F3A2E',qris:'#E08A2C',kartu:'#2A5A9C',transfer:'#B4472F'};
+  const payColors={tunai:'#2F7D50',qris:'#E08A2C',kartu:'#2A5A9C',transfer:'#B4472F'};
   const payTotals={}; let grandTotal=0;
   trx.forEach(t=>{ payTotals[t.payment]=(payTotals[t.payment]||0)+t.total; grandTotal+=t.total; });
   const payEntries=Object.entries(payTotals).sort((a,b)=>b[1]-a[1]);
@@ -571,10 +610,71 @@ function renderReport(){
     : `<tr><td colspan="4" class="empty">Tidak ada transaksi pada rentang ini</td></tr>`;
 }
 
+// ===== LAPORAN STOK (untuk administrator) =====
+function stockStatusHTML(n){
+  return n<=0 ? '<span style="color:var(--danger);font-weight:600">Habis</span>'
+       : n<=5 ? '<span style="color:var(--accent);font-weight:600">Menipis</span>'
+       : '<span style="color:var(--ok);font-weight:600">Aman</span>';
+}
+function renderStockReport(){
+  const inv=getInv(), menu=getMenu();
+  const cat=document.getElementById('stCat').value;
+  const from=document.getElementById('stFrom').value, to=document.getElementById('stTo').value;
+
+  const items=inv.filter(p=>!cat||p.category===cat).sort((a,b)=>a.stock-b.stock);
+  const habis=items.filter(p=>p.stock<=0).length;
+  const menipis=items.filter(p=>p.stock>0&&p.stock<=5).length;
+
+  const logs=getLog().filter(l=>{
+    const d=l.date.slice(0,10);
+    if((from&&d<from)||(to&&d>to)) return false;
+    if(!cat) return true;
+    const it=inv.find(x=>x.id===l.itemId);
+    return it && it.category===cat;
+  }).slice().reverse();
+  const masuk=logs.filter(l=>l.type==='masuk').reduce((s,l)=>s+l.qty,0);
+  const keluar=logs.filter(l=>l.type==='keluar').reduce((s,l)=>s+l.qty,0);
+
+  document.getElementById('stTotal').textContent=items.length;
+  document.getElementById('stAman').textContent=items.length-habis-menipis;
+  document.getElementById('stMenipis').textContent=menipis;
+  document.getElementById('stHabis').textContent=habis;
+  document.getElementById('stMasuk').textContent=masuk;
+  document.getElementById('stKeluar').textContent=keluar;
+
+  document.getElementById('stListBody').innerHTML = items.length ? items.map(p=>`
+    <tr><td>${p.name}</td><td>${CAT_LABEL[p.category]||p.category}</td><td>${p.stock}</td><td>${p.unit}</td><td>${stockStatusHTML(p.stock)}</td></tr>`).join('')
+    : `<tr><td colspan="5" class="empty">Belum ada barang</td></tr>`;
+
+  document.getElementById('stMenuBody').innerHTML = menu.length ? menu.slice().sort((a,b)=>a.stock-b.stock).map(p=>`
+    <tr><td>${p.code||'-'}</td><td>${p.name}</td><td><span class="tag tag-menu">${p.category}</span></td><td>${p.stock}</td><td>${stockStatusHTML(p.stock)}</td></tr>`).join('')
+    : `<tr><td colspan="5" class="empty">Belum ada menu</td></tr>`;
+
+  document.getElementById('stLogBody').innerHTML = logs.length ? logs.map(l=>{
+    const it=inv.find(x=>x.id===l.itemId);
+    return `<tr><td>${new Date(l.date).toLocaleString('id-ID')}</td><td>${it?it.name:'-'}</td><td>${l.type==='masuk'?'Masuk':'Keluar'}</td><td>${l.qty}</td><td>${it?it.unit:'-'}</td><td>${l.note||'-'}</td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="empty">Tidak ada pergerakan stok pada rentang ini</td></tr>`;
+}
+
+let profPassShown=false;
+function updateProfPass(){
+  const u=currentUser();
+  document.getElementById('viewPass').textContent = profPassShown ? u.password : '••••••••';
+  document.getElementById('togglePassBtn').textContent = profPassShown ? 'Sembunyikan' : 'Tampilkan';
+}
+function togglePass(){ profPassShown=!profPassShown; updateProfPass(); }
+function editProfile(on){
+  document.getElementById('profileView').style.display = on ? 'none' : 'block';
+  document.getElementById('profileEdit').style.display = on ? 'block' : 'none';
+}
 function renderProfil(){
   const u=currentUser();
+  document.getElementById('viewName').textContent=u.name;
+  document.getElementById('viewUser').textContent=u.username;
+  profPassShown=false; updateProfPass();
   document.getElementById('myName').value=u.name; document.getElementById('myUser').value=u.username; document.getElementById('myPass').value='';
   document.getElementById('profileMsg').textContent='';
+  editProfile(false);
 }
 function saveProfile(){
   const u=currentUser();
@@ -585,11 +685,12 @@ function saveProfile(){
   let users=getUsers().map(x=>x.id===u.id?{...x,name,username,password: pass?pass:x.password}:x);
   setUsers(users);
   document.getElementById('userChip').textContent=name+' ('+u.role+')';
+  renderProfil();
   document.getElementById('profileMsg').textContent='Profil berhasil diperbarui.';
-  document.getElementById('myPass').value='';
 }
 
 seedIfEmpty();
+ensureMenuCodes();
 if(document.getElementById('loginScreen')){
   // Halaman login: cuma perlu wiring submit, tidak ada guard role di sini.
   const passEl=document.getElementById('loginPass');
