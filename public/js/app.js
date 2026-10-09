@@ -660,8 +660,14 @@ function renderStockReport(){
 let profPassShown=false;
 function updateProfPass(){
   const u=currentUser();
-  document.getElementById('viewPass').textContent = profPassShown ? u.password : '••••••••';
-  document.getElementById('togglePassBtn').textContent = profPassShown ? 'Sembunyikan' : 'Tampilkan';
+  const passEl=document.getElementById('viewPass');
+  const toggleBtn=document.getElementById('togglePassBtn');
+  if(!passEl || !toggleBtn || !u) return;
+
+  passEl.textContent = profPassShown ? (u.password || '') : '••••••••';
+  toggleBtn.classList.toggle('shown', profPassShown);
+  toggleBtn.setAttribute('aria-label', profPassShown ? 'Sembunyikan password' : 'Tampilkan password');
+  toggleBtn.setAttribute('title', profPassShown ? 'Sembunyikan password' : 'Tampilkan password');
 }
 function togglePass(){ profPassShown=!profPassShown; updateProfPass(); }
 function editProfile(on){
@@ -670,8 +676,8 @@ function editProfile(on){
 }
 function renderProfil(){
   const u=currentUser();
-  document.getElementById('viewName').textContent=u.name;
-  document.getElementById('viewUser').textContent=u.username;
+  document.getElementById('heroName').textContent=u.name;
+  document.getElementById('heroUser').textContent='@'+u.username;
   profPassShown=false; updateProfPass();
   document.getElementById('myName').value=u.name; document.getElementById('myUser').value=u.username; document.getElementById('myPass').value='';
   document.getElementById('profileMsg').textContent='';
