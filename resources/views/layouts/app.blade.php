@@ -1,3 +1,23 @@
+@php
+    $roleMap = ['owner' => 'superadmin', 'admin' => 'administrator', 'kasir' => 'kasir'];
+    $serverUser = [
+        'id'       => auth()->user()->id_user,
+        'name'     => auth()->user()->name,
+        'username' => auth()->user()->username,
+        'role'     => $roleMap[auth()->user()->role] ?? 'kasir',
+    ];
+
+    $pageKeyMap = [
+        'dashboard'      => 'dashboard',
+        'pengguna.index' => 'pengguna',
+        'menu.index'     => 'menu',
+        'stok.index'     => 'stok',
+        'kasir.index'    => 'kasir',
+        'laporan.index'  => 'laporan',
+        'profile.index'  => 'profil',
+    ];
+    $pageKey = $pageKeyMap[request()->route()?->getName()] ?? 'dashboard';
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -22,9 +42,6 @@
 <div id="receiptPrint"></div>
 
 <script>
-  // Dipakai app.js untuk tahu ini halaman apa & ke mana link sidebar harus mengarah,
-  // karena di Laravel tiap menu adalah route/URL sungguhan (bukan SPA satu halaman).
-  const PAGE_KEY = @json($pageKey ?? 'dashboard');
   const ROUTE_URLS = {
     dashboard: @json(route('dashboard')),
     pengguna: @json(route('pengguna.index')),
@@ -35,6 +52,13 @@
     profil: @json(route('profile.index')),
     login: @json(route('login'))
   };
+  const FIRST_PAGE_BY_ROLE = { superadmin:'dashboard', administrator:'dashboard', kasir:'kasir' };
+
+  // Data user dari sesi Laravel (menggantikan login palsu di localStorage)
+  const SERVER_USER = @json($serverUser);
+  const LOGOUT_URL = @json(route('logout'));
+  const CSRF_TOKEN = @json(csrf_token());
+  const PAGE_KEY = @json($pageKey);
 </script>
 <script src="{{ asset('js/app.js') }}"></script>
 </body>

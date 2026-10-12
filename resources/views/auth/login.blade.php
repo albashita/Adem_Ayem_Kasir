@@ -13,27 +13,25 @@
   <div class="login-card">
     <h1>Adem<span> Ayem</span></h1>
     <p class="sub">Masuk untuk mengelola sistem</p>
-    <div class="field"><label>Username</label><input id="loginUser" placeholder="superadmin"></div>
-    <div class="field"><label>Password</label><input id="loginPass" type="password" placeholder="••••••••"></div>
-    <button class="btn btn-primary" onclick="doLogin()">Masuk</button>
-    <div class="error-msg" id="loginError"></div>
-    <div class="hint">Demo akun:<br>superadmin / super123<br>administrator / admin123<br>kasir / kasir123</div>
+
+    <form method="POST" action="{{ route('login.process') }}">
+      @csrf
+      <div class="field">
+        <label>Username</label>
+        <input id="loginUser" name="username" value="{{ old('username') }}" placeholder="username" required autofocus>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input id="loginPass" name="password" type="password" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="btn btn-primary">Masuk</button>
+    </form>
+
+    @error('username')
+      <div class="error-msg" style="display:block">{{ $message }}</div>
+    @enderror
   </div>
 </div>
 
-<script>
-  const ROUTE_URLS = {
-    dashboard: @json(route('dashboard')),
-    pengguna: @json(route('pengguna.index')),
-    menu: @json(route('menu.index')),
-    stok: @json(route('stok.index')),
-    kasir: @json(route('kasir.index')),
-    laporan: @json(route('laporan.index')),
-    profil: @json(route('profile.index')),
-    login: @json(route('login'))
-  };
-  const FIRST_PAGE_BY_ROLE = { superadmin:'dashboard', administrator:'dashboard', kasir:'kasir' };
-</script>
-<script src="{{ asset('js/app.js') }}" data-page="login"></script>
 </body>
 </html>

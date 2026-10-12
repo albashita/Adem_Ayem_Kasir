@@ -5,15 +5,9 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
-/**
- * Catatan: login aplikasi ini saat ini 100% di sisi browser (localStorage),
- * sama seperti versi aslinya, jadi controller ini belum dipanggil dari
- * routes/web.php. Controller ini disiapkan untuk suatu saat nanti kalau mau
- * pindah ke login & tabel users sungguhan lewat Laravel Auth + database.
- */
 class AuthController extends Controller
 {
-    public function showLoginForm()
+    public function showLogin()
     {
         return view('auth.login');
     }
@@ -25,26 +19,31 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (Auth::attempt($credentials + ['is_active' => 1])) {
             $request->session()->regenerate();
 
-            return redirect()->intended(route('dashboard'));
+            return redirect($this->homeByRole(Auth::user()->role));
         }
 
         return back()
-            ->withErrors([
-                'username' => 'Username atau password salah.',
-            ])
+            ->withErrors(['username' => 'Username atau password salah.'])
             ->onlyInput('username');
     }
 
     public function logout(Request $request)
     {
         Auth::logout();
-
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
         return redirect()->route('login');
+    }
+
+    private function homeByRole(string $role): string
+    {
+        return match ($role) {
+            'kasir' => route('kasir.index'),
+            default => route('dashboard'), // owner dan admin
+        };
     }
 }

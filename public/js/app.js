@@ -57,7 +57,10 @@ function stockSpend(from,to){
     return (!from||d>=from)&&(!to||d<=to);
   }).reduce((s,l)=>s+l.cost,0);
 }
-function currentUser(){const id=sessionStorage.getItem(LSS); return getUsers().find(u=>u.id===id);}
+
+function currentUser(){
+  return (typeof SERVER_USER !== 'undefined') ? SERVER_USER : undefined;
+}
 
 // Kode menu: dibuat otomatis dari 3 huruf awal kategori (mis. NAS-01, MIN-02)
 function genMenuCode(category, menu){
@@ -101,8 +104,12 @@ function doLogin(){
   }
 }
 function logoutUser(){
-  sessionStorage.removeItem(LSS);
-  window.location.href = ROUTE_URLS.login;
+  const f = document.createElement('form');
+  f.method = 'POST';
+  f.action = LOGOUT_URL;
+  f.innerHTML = '<input type="hidden" name="_token" value="' + CSRF_TOKEN + '">';
+  document.body.appendChild(f);
+  f.submit();
 }
 
 // Membangun sidebar sesuai role yang login, dengan link <a href> sungguhan
@@ -142,7 +149,6 @@ function bootstrapPage(){
   if(titleEl) titleEl.textContent=titles[PAGE_KEY];
 
   if(PAGE_KEY==='dashboard') renderDashboard();
-  if(PAGE_KEY==='pengguna') renderUsers();
   if(PAGE_KEY==='menu') renderMenuAdmin();
   if(PAGE_KEY==='stok') renderStok();
   if(PAGE_KEY==='kasir') renderPOS();
@@ -752,43 +758,62 @@ function renderStockReport(){
   }).join('') : `<tr><td colspan="7" class="empty">Tidak ada pergerakan stok pada rentang ini</td></tr>`;
 }
 
-let profPassShown=false;
-function updateProfPass(){
-  const u=currentUser();
-  const passEl=document.getElementById('viewPass');
-  const toggleBtn=document.getElementById('togglePassBtn');
-  if(!passEl || !toggleBtn || !u) return;
-
-  passEl.textContent = profPassShown ? (u.password || '') : '••••••••';
-  toggleBtn.classList.toggle('shown', profPassShown);
-  toggleBtn.setAttribute('aria-label', profPassShown ? 'Sembunyikan password' : 'Tampilkan password');
-  toggleBtn.setAttribute('title', profPassShown ? 'Sembunyikan password' : 'Tampilkan password');
-}
-function togglePass(){ profPassShown=!profPassShown; updateProfPass(); }
 function editProfile(on){
   document.getElementById('profileView').style.display = on ? 'none' : 'block';
   document.getElementById('profileEdit').style.display = on ? 'block' : 'none';
 }
+function editProfile(on){
+  document.getElementById('profileView').style.display = on ? 'none' : 'block';
+  document.getElementById('profileEdit').style.display = on ? 'block' : 'none';
+}
+
+function togglePw(id, btn){
+  const input=document.getElementById(id);
+  const show=input.type==='password';
+  input.type=show?'text':'password';
+  btn.classList.toggle('shown',show);
+}
+
 function renderProfil(){
   const u=currentUser();
   document.getElementById('heroName').textContent=u.name;
-  document.getElementById('heroUser').textContent='@'+u.username;
-  profPassShown=false; updateProfPass();
-  document.getElementById('myName').value=u.name; document.getElementById('myUser').value=u.username; document.getElementById('myPass').value='';
+  document.getElementById('myName').value=u.name;
+  document.getElementById('myUser').value=u.username;
+  ['myOldPass','myPass'].forEach(id=>{ const i=document.getElementById(id); i.value=''; i.type='password'; });
+  document.querySelectorAll('#profileEdit .eye-btn').forEach(b=>b.classList.remove('shown'));
   document.getElementById('profileMsg').textContent='';
   editProfile(false);
 }
-function saveProfile(){
+
+async function saveProfile(){
   const u=currentUser();
+  const msg=document.getElementById('profileMsg');
   const name=document.getElementById('myName').value.trim();
   const username=document.getElementById('myUser').value.trim();
-  const pass=document.getElementById('myPass').value;
-  if(!name||!username){alert('Nama dan username wajib diisi.');return;}
-  let users=getUsers().map(x=>x.id===u.id?{...x,name,username,password: pass?pass:x.password}:x);
-  setUsers(users);
-  document.getElementById('userChip').textContent=name+' ('+u.role+')';
-  renderProfil();
-  document.getElementById('profileMsg').textContent='Profil berhasil diperbarui.';
+  const password=document.getElementById('myPass').value;
+  const current_password=document.getElementById('myOldPass').value;
+
+  if(!name||!username){ msg.textContent='Nama dan username wajib diisi.'; return; }
+  if(password && !current_password){ msg.textContent='Isi password lama untuk mengganti password.'; return; }
+
+  try{
+    const res=await fetch(ROUTE_URLS.profil,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':CSRF_TOKEN},
+      body:JSON.stringify({name,username,password,current_password})
+    });
+    const data=await res.json();
+    if(!res.ok){
+      msg.textContent = data.errors ? Object.values(data.errors)[0][0] : (data.message||'Gagal menyimpan.');
+      return;
+    }
+    u.name=data.name; u.username=data.username;
+    document.getElementById('userChip').textContent=u.name+' ('+u.role+')';
+    renderProfil();
+    msg.textContent='Profil berhasil diperbarui.';
+  }catch(e){
+    msg.textContent='Terjadi kesalahan jaringan.';
+  }
 }
 
 seedIfEmpty();
