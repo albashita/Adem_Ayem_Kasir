@@ -757,50 +757,48 @@ function renderStockReport(){
     return `<tr><td>${new Date(l.date).toLocaleString('id-ID')}</td><td>${it?it.name:'-'}</td><td>${l.type==='masuk'?'Masuk':'Keluar'}</td><td>${l.qty}</td><td>${it?it.unit:'-'}</td><td>${l.type==='masuk'&&l.cost>0?rupiah(l.cost):'-'}</td><td>${l.note||'-'}</td></tr>`;
   }).join('') : `<tr><td colspan="7" class="empty">Tidak ada pergerakan stok pada rentang ini</td></tr>`;
 }
-
+// ===== PROFIL (modal) =====
 function editProfile(on){
-  document.getElementById('profileView').style.display = on ? 'none' : 'block';
-  document.getElementById('profileEdit').style.display = on ? 'block' : 'none';
-}
-function editProfile(on){
-  document.getElementById('profileView').style.display = on ? 'none' : 'block';
-  document.getElementById('profileEdit').style.display = on ? 'block' : 'none';
-}
-
-function togglePw(id, btn){
-  const input=document.getElementById(id);
-  const show=input.type==='password';
-  input.type=show?'text':'password';
-  btn.classList.toggle('shown',show);
+  const modal=document.getElementById('profileModal');
+  if(!modal) return;
+  if(on){
+    const u=currentUser();
+    document.getElementById('myName').value=u.name;
+    document.getElementById('myUser').value=u.username;
+    ['myOldPass','myPass','myPassConfirm'].forEach(id=>{
+      const i=document.getElementById(id); i.value=''; i.type='password';
+    });
+    document.querySelectorAll('#profileModal .eye-btn').forEach(b=>b.classList.remove('shown'));
+    document.getElementById('modalMsg').textContent='';
+    document.getElementById('profileMsg').textContent='';
+  }
+  modal.style.display = on ? 'flex' : 'none';
 }
 
 function renderProfil(){
   const u=currentUser();
   document.getElementById('heroName').textContent=u.name;
-  document.getElementById('myName').value=u.name;
-  document.getElementById('myUser').value=u.username;
-  ['myOldPass','myPass'].forEach(id=>{ const i=document.getElementById(id); i.value=''; i.type='password'; });
-  document.querySelectorAll('#profileEdit .eye-btn').forEach(b=>b.classList.remove('shown'));
-  document.getElementById('profileMsg').textContent='';
   editProfile(false);
 }
 
 async function saveProfile(){
   const u=currentUser();
-  const msg=document.getElementById('profileMsg');
+  const msg=document.getElementById('modalMsg');
   const name=document.getElementById('myName').value.trim();
   const username=document.getElementById('myUser').value.trim();
   const password=document.getElementById('myPass').value;
   const current_password=document.getElementById('myOldPass').value;
+  const password_confirmation=document.getElementById('myPassConfirm').value;
 
   if(!name||!username){ msg.textContent='Nama dan username wajib diisi.'; return; }
   if(password && !current_password){ msg.textContent='Isi password lama untuk mengganti password.'; return; }
+  if(password !== password_confirmation){ msg.textContent='Konfirmasi password tidak sama.'; return; }
 
   try{
     const res=await fetch(ROUTE_URLS.profil,{
       method:'PUT',
       headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':CSRF_TOKEN},
-      body:JSON.stringify({name,username,password,current_password})
+      body:JSON.stringify({name,username,password,current_password,password_confirmation})
     });
     const data=await res.json();
     if(!res.ok){
@@ -809,13 +807,20 @@ async function saveProfile(){
     }
     u.name=data.name; u.username=data.username;
     document.getElementById('userChip').textContent=u.name+' ('+u.role+')';
-    renderProfil();
-    msg.textContent='Profil berhasil diperbarui.';
+    document.getElementById('heroName').textContent=u.name;
+    editProfile(false);
+    document.getElementById('profileMsg').textContent='Profil berhasil diperbarui.';
   }catch(e){
     msg.textContent='Terjadi kesalahan jaringan.';
   }
 }
 
+function togglePw(id, btn){
+  const input=document.getElementById(id);
+  const show=input.type==='password';
+  input.type=show?'text':'password';
+  btn.classList.toggle('shown',show);
+}
 seedIfEmpty();
 ensureMenuCodes();
 if(document.getElementById('loginScreen')){

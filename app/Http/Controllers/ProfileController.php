@@ -12,10 +12,15 @@ class ProfileController extends Controller
         $user = $request->user();
 
         $data = $request->validate([
-            'name'             => 'required|string|max:100',
-            'username'         => 'required|string|max:50|unique:users,username,' . $user->id_user . ',id_user',
-            'password'         => 'nullable|string|min:6',
+            // batas max disamakan dengan kolom di database (name 30, username 25)
+            'name'             => 'required|string|max:30',
+            'username'         => 'required|string|max:25|unique:users,username,' . $user->id_user . ',id_user',
+            'password'         => 'nullable|string|min:6|confirmed',
             'current_password' => 'nullable|string',
+        ], [
+            'password.confirmed' => 'Konfirmasi password tidak sama.',
+            'password.min'       => 'Password baru minimal 6 karakter.',
+            'username.unique'    => 'Username sudah dipakai.',
         ]);
 
         // Ganti password: password lama wajib benar

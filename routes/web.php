@@ -3,8 +3,50 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+
+/*
+|--------------------------------------------------------------------------
+| Pengecekan role (langsung di file ini, tanpa class CheckRole)
+|--------------------------------------------------------------------------
+| Pemakaian: Route::group(['middleware' => [$role('owner', 'admin')]], function () {...})
+| - belum login            -> ke halaman login
+| - role sesuai            -> lanjut
+| - role salah             -> kembali ke halaman utama rolenya + pesan error
+| - AJAX/JSON / role aneh  -> 403
+*/
+$role = fn (string ...$roles) => function (Request $request, Closure $next) use ($roles) {
+    $user = $request->user();
+
+    if (! $user) {
+        return redirect()->route('login');
+    }
+
+    if (in_array($user->role, $roles, true)) {
+        return $next($request);
+    }
+
+    $message = 'Anda tidak punya akses ke halaman ini.';
+
+    if ($request->expectsJson()) {
+        abort(403, $message);
+    }
+
+    $home = match ($user->role) {
+        'kasir'          => 'kasir.index',
+        'owner', 'admin' => 'dashboard',
+        default          => null,
+    };
+
+    // Cegah redirect berulang (loop)
+    if ($home === null || $request->routeIs($home)) {
+        abort(403, $message);
+    }
+
+    return redirect()->route($home)->with('error', $message);
+};
 
 /*
 |--------------------------------------------------------------------------
@@ -21,6 +63,9 @@ Route::get('/', function () {
         : redirect()->route('dashboard');
 })->name('home');
 
+// Jaga-jaga: bawaan Laravel kadang mengarah ke /home
+Route::redirect('/home', '/');
+
 /*
 |--------------------------------------------------------------------------
 | Auth
@@ -35,17 +80,17 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 | Halaman aplikasi (wajib login)
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth')->group(function () {
+Route::middleware('auth')->group(function () use ($role) {
 
     // Owner & Admin
-    Route::middleware('role:owner,admin')->group(function () {
+    Route::group(['middleware' => [$role('owner', 'admin')]], function () {
         Route::get('/dashboard', function () {
             return view('dashboard.index', ['pageKey' => 'dashboard']);
         })->name('dashboard');
     });
 
     // Owner saja
-    Route::middleware('role:owner')->group(function () {
+    Route::group(['middleware' => [$role('owner')]], function () {
         // Pengelolaan pengguna (CRUD)
         Route::get('/pengguna', [UserController::class, 'index'])->name('pengguna.index');
         Route::post('/pengguna', [UserController::class, 'store'])->name('pengguna.store');
@@ -58,14 +103,14 @@ Route::middleware('auth')->group(function () {
     });
 
     // Admin saja
-    Route::middleware('role:admin')->group(function () {
+    Route::group(['middleware' => [$role('admin')]], function () {
         Route::get('/stok', function () {
             return view('stok.index', ['pageKey' => 'stok']);
         })->name('stok.index');
     });
 
     // Kasir saja
-    Route::middleware('role:kasir')->group(function () {
+    Route::group(['middleware' => [$role('kasir')]], function () {
         Route::get('/kasir', function () {
             return view('kasir.index', ['pageKey' => 'kasir']);
         })->name('kasir.index');
@@ -81,4 +126,18 @@ Route::middleware('auth')->group(function () {
     })->name('profile.index');
 
     Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Alamat yang tidak dikenal (mis. /admin) -> kembali ke beranda
+|--------------------------------------------------------------------------
+*/
+Route::fallback(function (Request $request) {
+    // File statis yang hilang (css/js/gambar) tetap 404
+    if (pathinfo($request->path(), PATHINFO_EXTENSION) !== '') {
+        abort(404);
+    }
+
+    return redirect()->route('home');
 });
