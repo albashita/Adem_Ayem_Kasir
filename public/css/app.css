@@ -1,13 +1,3 @@
-/* =====================================================
-   ADEM AYEM - Sistem Kasir
-   Konsep: joglo semi modern
-   - Warna  : hijau tua (brand), cokelat kayu jati, kuningan
-   - Motif  : atap joglo bertingkat (tumpang sari), dipakai
-              di login dan logo sidebar
-   - Menu   : teks saja, tanpa ikon makanan/minuman
-   File ini menggantikan SELURUH isi style.css lama.
-   ===================================================== */
-
 /* ===== VARIABEL & RESET ===== */
 :root{
   --bg:#EDF2EE;
@@ -190,34 +180,133 @@ tbody tr:hover{background:#F7FAF8;}
 .tag-kasir{background:#EFE3D6;color:#7A4A22;}
 
 /* ===== MENU: TEKS SAJA, TANPA IKON ===== */
-table:has(#menuBody) th:first-child,
-table:has(#menuBody) td:first-child{display:none;}
 .field:has(#emojiPick){display:none;}
 .emoji-pick{display:none;}
 .prod-card .emoji,.cart-item .emoji{display:none;}
 
-/* ===== LAYOUT KELOLA MENU: dua kolom =====
-   Urutan kolom tabel: 1 Gbr (disembunyikan), 2 Kode, 3 Nama,
-   4 Kategori, 5 Harga, 6 Aksi */
-.menu-page{
-  display:grid;
-  grid-template-columns:300px 1fr;
-  gap:20px;
-  align-items:start;
-}
-.menu-page .panel{margin-bottom:0;min-width:0;}
-.menu-page .panel:first-child{position:sticky;top:20px;}
-.menu-page .panel:last-child{overflow-x:auto;}
 
-.menu-page .form-row{flex-direction:column;align-items:stretch;gap:14px;}
-.menu-page .form-row .field{min-width:0;}
-.menu-page .form-row .btn-primary{width:100%;height:44px;}
-
-/* kode menu */
-.menu-page td:nth-child(2){
-  font-family:'Courier New',monospace;font-size:12.5px;font-weight:700;
-  color:var(--kayu);letter-spacing:.5px;
+/* ===== KELOLA MENU - TAMPILAN BARU ===== */
+.menu-page {
+    width: 100%;
+    max-width: none;
 }
+
+.menu-page .panel {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 24px;
+    border: 1px solid #dce6df;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.menu-page #menuBody tr {
+    border-bottom: 1px solid #e2e9e4;
+}
+
+.menu-page #menuBody td {
+    padding: 16px 12px;
+    vertical-align: middle;
+}
+
+.menu-page #menuBody td:nth-child(2) {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: normal;
+    white-space: nowrap;
+}
+
+.menu-page #menuBody img {
+    display: block;
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid #e2e9e4;
+}
+
+.menu-page #menuBody .row-actions {
+    white-space: nowrap;
+    text-align: right;
+}
+
+.menu-page #menuBody .row-actions button {
+    padding: 8px 16px;
+    margin-left: 6px;
+    border-radius: 6px;
+    background: #fff;
+}
+
+.menu-page #menuBody .row-actions .del {
+    color: #c83232;
+    border: 1px solid #e6aaaa;
+}
+
+#menuModal .panel {
+    width: 100%;
+    max-width: 560px;
+    padding: 26px;
+    border-radius: 14px;
+    box-sizing: border-box;
+    box-shadow: 0 16px 45px rgba(0, 0, 0, .18);
+}
+
+#menuModal .field {
+    margin-bottom: 16px;
+}
+
+#menuModal .field label {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: 500;
+}
+
+#menuModal .field input:not([type="file"]),
+#menuModal .field select,
+#menuModal .field textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    box-sizing: border-box;
+    border: 1px solid #d6e0d9;
+    border-radius: 7px;
+    font: inherit;
+}
+
+#menuModal .field textarea {
+    min-height: 44px;
+    height: 44px;
+    resize: vertical;
+}
+
+#menuModal .field small {
+    display: block;
+    margin-top: 6px;
+    color: #68766d;
+}
+
+#menuModal #mImagePreview {
+    max-width: 180px;
+    max-height: 140px;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+@media (max-width: 700px) {
+    .menu-page .panel {
+        padding: 14px;
+    }
+
+    #menuModal {
+        padding: 12px !important;
+    }
+
+    #menuModal .panel {
+        padding: 18px;
+    }
+}
+
 /* harga & aksi rata kanan */
 .menu-page th:nth-child(5),.menu-page td:nth-child(5),
 .menu-page th:nth-child(6),.menu-page td:nth-child(6){text-align:right;}
@@ -451,3 +540,391 @@ body.print-receipt-mode #receiptPrint{display:block;}
 .profile-actions{display:flex;gap:10px;margin-top:6px;}
 .profile-actions .btn{flex:1;}
 #profileEdit{padding-top:4px;}
+
+
+/* Tombol Tambah Menu dibuat kecil */
+.menu-page > .panel > div:first-child .btn-primary {
+    width: auto !important;
+    min-width: 140px;
+    min-height: 40px;
+    padding: 10px 18px;
+    align-self: flex-start;
+}
+
+
+/* ===== RAPIIKAN MODAL TAMBAH MENU ===== */
+#menuModal .panel {
+    width: calc(100% - 32px);
+    max-width: 600px;
+    max-height: 88vh;
+    overflow-y: auto;
+    padding: 22px 24px;
+    border-radius: 12px;
+    box-sizing: border-box;
+}
+
+/* Judul modal */
+#menuModal .panel h3 {
+    font-size: 18px;
+    margin: 0 0 18px;
+    padding-bottom: 12px;
+}
+
+/* Label setiap field */
+#menuModal .field label,
+#menuModal label {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+/* Input, pilihan kategori, dan deskripsi */
+#menuModal input:not([type="file"]):not([type="hidden"]),
+#menuModal select,
+#menuModal textarea {
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 12px;
+    font-size: 14px;
+    border-radius: 7px;
+    box-sizing: border-box;
+}
+
+/* Jarak antar kolom/form */
+#menuModal .field {
+    margin-bottom: 12px;
+}
+
+/* Teks bantuan di bawah input */
+#menuModal small,
+#menuModal .help-text {
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+/* Upload foto */
+#menuModal input[type="file"] {
+    width: 100%;
+    padding: 8px;
+    font-size: 12px;
+    box-sizing: border-box;
+}
+
+/* Tombol bawah modal */
+#menuModal .btn {
+    min-height: 38px;
+    padding: 9px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+
+/* Tombol Simpan jangan terlalu besar */
+#menuModal .btn-primary {
+    width: auto;
+    min-width: 120px;
+}
+
+/* Tampilan layar kecil */
+@media (max-width: 600px) {
+    #menuModal .panel {
+        width: calc(100% - 20px);
+        padding: 18px 16px;
+        max-height: 90vh;
+    }
+}
+
+
+/* Header Daftar Menu */
+.menu-page .menu-header {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.menu-page .menu-header h3 {
+    margin: 0;
+    padding: 0;
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+.menu-page .menu-header .btn-primary {
+    width: auto !important;
+    min-height: 40px;
+    padding: 10px 18px;
+    flex-shrink: 0;
+}
+
+@media (max-width: 500px) {
+    .menu-page .menu-header {
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+}
+
+
+/* Header panel Kelola Menu */
+.menu-page .menu-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.menu-page .menu-header h3 {
+    margin: 0;
+    padding: 0 0 12px;
+    border-bottom: 1px solid #dce7e0;
+    font-size: 16px;
+}
+
+.menu-page .menu-header .btn-primary {
+    width: auto !important;
+    min-width: 0;
+    padding: 10px 18px;
+    min-height: 40px;
+    flex-shrink: 0;
+}
+
+/* Header modal */
+#menuModal .menu-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+#menuModal .menu-modal-header h3 {
+    margin: 0;
+    padding-bottom: 12px;
+    font-size: 18px;
+}
+
+
+/* ===== KELOLA MENU: ATURAN FINAL ===== */
+
+.menu-page {
+    width: 100%;
+    max-width: none;
+}
+
+/* Panel daftar menu */
+.menu-page > .panel {
+    width: 100%;
+    margin-bottom: 18px;
+    padding: 24px 25px 26px;
+    background: #fff;
+    border: 1px solid #dce7e0;
+    border-radius: 12px;
+    box-shadow: none;
+}
+
+/* Header: judul kiri, tombol kanan */
+.menu-page > .panel > .menu-header {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.menu-page > .panel > .menu-header h3 {
+    margin: 0;
+    padding: 0;
+    border: none;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+/* Tombol Tambah Menu */
+.menu-page > .panel > .menu-header .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto !important;
+    min-width: 0;
+    min-height: 40px;
+    padding: 10px 18px;
+    margin: 0;
+    border-radius: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+/* Notifikasi */
+.menu-page #menuMessage {
+    margin: 0 0 12px !important;
+}
+
+/* Tabel */
+.menu-page table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.menu-page th {
+    padding: 14px;
+    background: #f1f6f3;
+    color: #52645a;
+    font-size: 13px;
+    font-weight: 500;
+    text-align: left;
+    border-bottom: 1px solid #d3dfd7;
+    white-space: nowrap;
+}
+
+.menu-page td {
+    padding: 12px 14px;
+    font-size: 14px;
+    border-bottom: 1px solid #e0e8e3;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.menu-page #menuBody img {
+    display: block;
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+    border: 1px solid #e2e9e4;
+    border-radius: 10px;
+}
+
+.menu-page th:nth-child(5),
+.menu-page td:nth-child(5),
+.menu-page th:nth-child(6),
+.menu-page td:nth-child(6) {
+    text-align: right;
+}
+
+.menu-page td:nth-child(5) {
+    color: var(--brand);
+    font-weight: 700;
+}
+
+.menu-page .row-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Modal Tambah/Edit Menu */
+#menuModal .panel {
+    width: 100%;
+    max-width: 560px;
+    max-height: 88vh;
+    overflow-y: auto;
+    margin: 0;
+    padding: 22px 24px;
+    box-sizing: border-box;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 16px 45px rgba(0, 0, 0, .18);
+}
+
+#menuModal .menu-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+#menuModal .menu-modal-header h3 {
+    margin: 0;
+    padding-bottom: 12px;
+    font-size: 18px;
+}
+
+#menuModal .field {
+    margin-bottom: 12px;
+}
+
+#menuModal .field label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+#menuModal .field input:not([type="file"]),
+#menuModal .field select,
+#menuModal .field textarea {
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 12px;
+    box-sizing: border-box;
+    border: 1px solid #d6e0d9;
+    border-radius: 7px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+#menuModal .field small {
+    display: block;
+    margin-top: 6px;
+    color: #68766d;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+#menuModal input[type="file"] {
+    max-width: 100%;
+    font-size: 12px;
+}
+
+#menuModal .btn {
+    min-height: 38px;
+    padding: 9px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+}
+
+@media (max-width: 600px) {
+    .menu-page > .panel {
+        padding: 16px;
+    }
+
+    .menu-page > .panel > .menu-header {
+        flex-wrap: wrap;
+    }
+
+    .menu-page th,
+    .menu-page td {
+        padding: 10px 8px;
+    }
+
+    #menuModal .panel {
+        padding: 18px 16px;
+        max-height: 90vh;
+    }
+}
+
+
+/* Rata tengah kolom Aksi */
+.menu-page th:nth-child(6),
+.menu-page td:nth-child(6) {
+    text-align: center !important;
+}
+
+/* Tombol Ubah dan Hapus sejajar di tengah */
+.menu-page .row-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+}
+
+.menu-page .row-actions button {
+    margin: 0;
+}
+
+
