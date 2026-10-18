@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-<<<<<<< HEAD
 use App\Models\Menu;
 use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
@@ -40,17 +39,3 @@ class QrMenuController extends Controller
         return response()->json($menus);
     }
 }
-=======
-use App\Models\Category;
-use Illuminate\Routing\Controller;
-
-class QrMenuController extends Controller
-{
-    public function index()
-    {
-        $categories = Category::with('menus')->get();
-
-        return view('menu.qr-menu', compact('categories'));
-    }
-}
->>>>>>> 886f7b9cc5a26ac9078b813161c97fc727a8ba45

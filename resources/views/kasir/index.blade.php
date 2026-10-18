@@ -5,13 +5,8 @@
 
 @section('content')
       <div class="pos-layout" id="kasirPage"
-<<<<<<< HEAD
      data-menu-url="{{ route('kasir.menu-data') }}"
      data-qr-url="http://192.168.1.7:8000/qr-menu">
-=======
-           data-menu-url="{{ route('kasir.menu-data') }}"
-           data-qr-url="{{ route('qr.menu') }}">
->>>>>>> 886f7b9cc5a26ac9078b813161c97fc727a8ba45
         <div class="pos-products panel"><h3>Pesanan Pelanggan — Pilih Menu</h3>
           <div class="pos-toolbar"><input id="posSearch" class="pos-search" placeholder="Cari menu..." oninput="renderPOS()"><button class="btn btn-outline btn-compact" onclick="openMenuQr()">QR Menu</button></div>
           <div class="cat-tabs" id="posCatTabs"></div>
