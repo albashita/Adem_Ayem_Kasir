@@ -151,7 +151,7 @@ function bootstrapPage(){
   if(PAGE_KEY==='dashboard') renderDashboard();
   if(PAGE_KEY==='menu') renderMenuAdmin();
   if(PAGE_KEY==='stok') renderStok();
-  if(PAGE_KEY==='kasir') renderPOS();
+  if(PAGE_KEY==='kasir') loadPosMenu();
   if(PAGE_KEY==='profil') renderProfil();
   if(PAGE_KEY==='laporan'){
     const isAdmin=user.role==='administrator';
@@ -716,38 +716,63 @@ function confirmStockIn(){
   closeStockIn();
   renderStok();
 }
+let posMenu = [];
 
+async function loadPosMenu(){
+  const grid = document.getElementById('posProductGrid');
+  const page = document.getElementById('kasirPage');
+  if(grid) grid.innerHTML = '<div class="empty">Memuat menu...</div>';
+  try{
+    const res = await fetch(page.dataset.menuUrl, {headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('Gagal memuat menu.');
+    const data = await res.json();
+    posMenu = data.map(m => ({
+      id: String(m.id),
+      code: m.code,
+      name: m.name,
+      price: Number(m.price),
+      category: m.category || 'Lainnya'
+    }));
+  }catch(e){
+    posMenu = [];
+    if(grid) grid.innerHTML = '<div class="empty">' + e.message + '</div>';
+    return;
+  }
+  renderPOS();
+}
 function renderPOS(){
-  const menu=getMenu();
-  const cats=['semua', ...new Set(menu.map(p=>p.category))];
+  const menu = posMenu;
+  const cats = ['semua', ...new Set(menu.map(p=>p.category))];
   document.getElementById('posCatTabs').innerHTML = cats.map(c=>
     `<button class="cat-tab ${c===currentPosCategory?'active':''}" onclick="selectPosCat('${c}')">${c==='semua'?'Semua':c}</button>`).join('');
-  const search=(document.getElementById('posSearch')?.value||'').toLowerCase();
-  const filtered=menu.filter(p=> (currentPosCategory==='semua'||p.category===currentPosCategory) && (p.name.toLowerCase().includes(search) || (p.code||'').toLowerCase().includes(search)));
+  const search = (document.getElementById('posSearch')?.value||'').toLowerCase();
+  const filtered = menu.filter(p =>
+    (currentPosCategory==='semua' || p.category===currentPosCategory) &&
+    (p.name.toLowerCase().includes(search) || (p.code||'').toLowerCase().includes(search)));
   document.getElementById('posProductGrid').innerHTML = filtered.length ? filtered.map(p=>`
     <div class="prod-card" onclick="addToCart('${p.id}')">
-      <div class="emoji">${p.emoji||'🍽️'}</div><div class="code">${p.code||''}</div><div class="name">${p.name}</div>
-      <div class="price">${rupiah(p.price)}</div><div class="stock">Stok: ${p.stock}</div></div>`).join('')
+      <div class="code">${p.code}</div>
+      <div class="name">${p.name}</div>
+      <div class="price">${rupiah(p.price)}</div>
+    </div>`).join('')
     : `<div class="empty">Menu tidak ditemukan</div>`;
   document.querySelectorAll('#orderTypeToggle button').forEach(b=>b.classList.toggle('sel', b.dataset.t===selectedOrderType));
   renderCart();
 }
-function selectPosCat(c){ currentPosCategory=c; renderPOS(); }
-function selectOrderType(t){ selectedOrderType=t; renderPOS(); }
+
 function addToCart(id){
-  const p=getMenu().find(x=>x.id===id);
-  if(!p || p.stock<=0){alert('Stok habis.');return;}
-  const existing=cart.find(c=>c.id===id);
-  if(existing){ if(existing.qty>=p.stock){alert('Stok tidak mencukupi.');return;} existing.qty++; }
-  else{ cart.push({id:p.id,name:p.name,price:p.price,qty:1}); }
+  const p = posMenu.find(x => x.id === id);
+  if(!p) return;
+  const existing = cart.find(c => c.id === id);
+  if(existing) existing.qty++;
+  else cart.push({id:p.id, name:p.name, price:p.price, qty:1});
   renderCart();
 }
-function changeQty(id,delta){
-  const item=cart.find(c=>c.id===id); if(!item) return;
-  const stock=getMenu().find(p=>p.id===id).stock;
-  item.qty+=delta;
-  if(item.qty<=0) cart=cart.filter(c=>c.id!==id);
-  else if(item.qty>stock) item.qty=stock;
+
+function changeQty(id, delta){
+  const item = cart.find(c => c.id === id); if(!item) return;
+  item.qty += delta;
+  if(item.qty <= 0) cart = cart.filter(c => c.id !== id);
   renderCart();
 }
 function removeFromCart(id){ cart=cart.filter(c=>c.id!==id); renderCart(); }
@@ -816,9 +841,6 @@ function confirmPayment(){
     if(received<total){alert('Uang diterima kurang dari total.');return;}
     change=received-total;
   }
-  let menu=getMenu();
-  cart.forEach(c=>{ menu=menu.map(p=>p.id===c.id?{...p,stock:p.stock-c.qty}:p); });
-  setMenu(menu);
   const customer=document.getElementById('custName').value.trim()||'Umum';
   const existingTrx=getTrx();
   const trxNo='SR-'+new Date().getFullYear()+'-'+String(existingTrx.length+1).padStart(4,'0');
@@ -1161,36 +1183,31 @@ if(document.getElementById('loginScreen')){
 }
 
 /* ===== QR MENU ===== */
-function buildMenuText(){
-  const menu=getMenu();
-  const cats=[...new Set(menu.map(p=>p.category))];
-  let s='MENU ADEM AYEM\n';
-  cats.forEach(c=>{
-    s+='\n'+c.toUpperCase()+'\n';
-    menu.filter(p=>p.category===c).forEach(p=>{ s+='- '+p.name+' Rp'+Number(p.price).toLocaleString('id-ID')+(p.stock<=0?' (habis)':'')+'\n'; });
-  });
-  return s.trim();
-}
 function qrSvg(text,px){
-  const qr=new QRLib(-1,1); // -1 = ukuran otomatis, 1 = level koreksi L
-  qr.addData(unescape(encodeURIComponent(text))); // aman untuk huruf non-ASCII
+  const qr=new QRLib(-1,1);
+  qr.addData(unescape(encodeURIComponent(text)));
   qr.make();
   const n=qr.getModuleCount(), q=3; let d='';
   for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(qr.isDark(r,c)) d+=`M${c+q} ${r+q}h1v1h-1z`;
   const t=n+q*2;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 ${t} ${t}" shape-rendering="crispEdges"><rect width="${t}" height="${t}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
 }
+function menuQrUrl(){
+  const page = document.getElementById('kasirPage');
+  return (page && page.dataset.qrUrl) || (location.origin + '/qr-menu');
+}
 function openMenuQr(){
-  const text=buildMenuText();
+  const url = menuQrUrl();
   let svg;
-  try{ svg=qrSvg(text,260); }catch(e){ svg='<div class="empty">Menu terlalu panjang untuk satu QR. Kurangi jumlah menu.</div>'; }
-  document.getElementById('menuQrBox').innerHTML=svg;
-  document.getElementById('menuQrText').textContent=text;
-  document.getElementById('menuQrModal').style.display='flex';
+  try{ svg = qrSvg(url, 260); }catch(e){ svg = '<div class="empty">Gagal membuat QR.</div>'; }
+  document.getElementById('menuQrBox').innerHTML = svg;
+  document.getElementById('menuQrText').textContent = url;
+  document.getElementById('menuQrModal').style.display = 'flex';
 }
 function closeMenuQr(){ document.getElementById('menuQrModal').style.display='none'; }
 function printMenuQr(){
-  document.getElementById('receiptPrint').innerHTML=`<div class="receipt"><div class="center"><b>MENU</b><br>Scan untuk melihat daftar menu</div><div class="center" style="margin-top:10px;">${qrSvg(buildMenuText(),240)}</div></div>`;
+  document.getElementById('receiptPrint').innerHTML =
+    `<div class="receipt"><div class="center"><b>MENU ADEM AYEM</b><br>Scan untuk melihat daftar menu</div><div class="center" style="margin-top:10px;">${qrSvg(menuQrUrl(),240)}</div></div>`;
   document.body.classList.add('print-receipt-mode');
   window.print();
 }
