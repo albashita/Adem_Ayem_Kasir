@@ -44,6 +44,8 @@ class MenuController extends Controller
             unset($validated['image']);
         }
 
+        $validated['is_active'] = true;
+
         $menu = Menu::create($validated);
 
         return response()->json([
@@ -106,23 +108,49 @@ class MenuController extends Controller
             'message' => 'Menu berhasil dihapus.',
         ]);
     }
+
     public function data()
-{
-    $menus = Menu::with('category')
-        ->orderBy('id_menu')
-        ->get()
-        ->map(function ($menu) {
-            $menu->image_url = (
-                $menu->image &&
-                str_starts_with($menu->image, 'menus/') &&
-                Storage::disk('public')->exists($menu->image)
-            )
-                ? Storage::disk('public')->url($menu->image)
-                : null;
+    {
+        $menus = Menu::with('category')
+            ->orderBy('id_menu')
+            ->get()
+            ->map(function ($menu) {
+                $menu->image_url = (
+                    $menu->image &&
+                    str_starts_with($menu->image, 'menus/') &&
+                    Storage::disk('public')->exists($menu->image)
+                )
+                    ? Storage::disk('public')->url($menu->image)
+                    : null;
 
-            return $menu;
-        });
+                return $menu;
+            });
 
-    return response()->json($menus);
-}
+        return response()->json($menus);
+    }
+
+    // Data menu untuk halaman Kasir (hanya menu aktif)
+    public function kasirData()
+    {
+        $menus = Menu::with('category')
+            ->where('is_active', 1)
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($menu) => [
+                'id'          => $menu->id_menu,
+                'code'        => 'MENU-' . str_pad($menu->id_menu, 3, '0', STR_PAD_LEFT),
+                'name'        => $menu->name,
+                'price'       => $menu->price,
+                'category_id' => $menu->categories_id_categorie,
+                'category'    => $menu->category?->name,
+                'image_url'   => (
+                    $menu->image &&
+                    Storage::disk('public')->exists($menu->image)
+                )
+                    ? Storage::disk('public')->url($menu->image)
+                    : null,
+            ]);
+
+        return response()->json($menus);
+    }
 }

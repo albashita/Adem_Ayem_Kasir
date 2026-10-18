@@ -1,10 +1,10 @@
-
 <?php
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\QrMenuController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -65,6 +65,14 @@ Route::redirect('/home', '/');
 
 /*
 |--------------------------------------------------------------------------
+| QR Menu (publik, tanpa login)
+|--------------------------------------------------------------------------
+*/
+Route::get('/qr-menu', [QrMenuController::class, 'index'])
+    ->name('qr.menu');
+
+/*
+|--------------------------------------------------------------------------
 | Auth
 |--------------------------------------------------------------------------
 */
@@ -114,7 +122,7 @@ Route::middleware('auth')->group(function () use ($role) {
         // Kelola Menu
         Route::get('/menu/data', [MenuController::class, 'data'])
             ->name('menu.data');
-            
+
         Route::get('/menu', [MenuController::class, 'index'])
             ->name('menu.index');
 
@@ -137,13 +145,16 @@ Route::middleware('auth')->group(function () use ($role) {
         })->name('stok.index');
     });
 
-    // Kasir saja
+        // Kasir saja
     Route::group(['middleware' => [$role('kasir')]], function () {
         Route::get('/kasir', function () {
             return view('kasir.index', [
                 'pageKey' => 'kasir'
             ]);
         })->name('kasir.index');
+
+        Route::get('/kasir/menu-data', [MenuController::class, 'kasirData'])
+            ->name('kasir.menu-data');
     });
 
     // Semua role yang sudah login
@@ -175,3 +186,10 @@ Route::fallback(function (Request $request) {
 
     return redirect()->route('home');
 });
+
+
+Route::get('/qr-menu', [QrMenuController::class, 'index'])
+    ->name('qr-menu');
+
+Route::get('/qr-menu/data', [QrMenuController::class, 'data'])
+    ->name('qr-menu.data');

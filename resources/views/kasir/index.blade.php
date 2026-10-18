@@ -4,7 +4,9 @@
 @section('page-title', 'Kasir')
 
 @section('content')
-      <div class="pos-layout">
+      <div class="pos-layout" id="kasirPage"
+     data-menu-url="{{ route('kasir.menu-data') }}"
+     data-qr-url="http://192.168.1.7:8000/qr-menu">
         <div class="pos-products panel"><h3>Pesanan Pelanggan — Pilih Menu</h3>
           <div class="pos-toolbar"><input id="posSearch" class="pos-search" placeholder="Cari menu..." oninput="renderPOS()"><button class="btn btn-outline btn-compact" onclick="openMenuQr()">QR Menu</button></div>
           <div class="cat-tabs" id="posCatTabs"></div>
@@ -25,10 +27,10 @@
           <div class="rline-mini" id="cartDiscountRow" style="display:none;"><span>Diskon</span><span id="cartDiscount">- Rp 0</span></div>
           <div class="rline-mini"><span>Pajak PB1 (10%)</span><span id="cartTax">Rp 0</span></div>
           <div class="total-row"><span>Total</span><span id="cartTotal">Rp 0</span></div>
-          <button class="btn btn-accent" style="width:100%" onclick="openPaymentModal()">Bayar</button>
+          <button class="btn btn-accent" style="width:100%" onclick="openPaymentModal()">Simpan</button>
         </div>
       </div>
-    
+
 <div id="paymentModal" class="modal-overlay" style="display:none;">
       <div class="modal-box">
         <div class="modal-close" onclick="closePaymentModal()">✕</div>
