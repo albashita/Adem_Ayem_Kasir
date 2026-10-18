@@ -185,6 +185,7 @@ Route::fallback(function (Request $request) {
     }
 
     return redirect()->route('home');
+<<<<<<< HEAD
 });
 
 
@@ -193,3 +194,6 @@ Route::get('/qr-menu', [QrMenuController::class, 'index'])
 
 Route::get('/qr-menu/data', [QrMenuController::class, 'data'])
     ->name('qr-menu.data');
+=======
+});
+>>>>>>> 886f7b9cc5a26ac9078b813161c97fc727a8ba45
