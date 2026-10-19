@@ -37,12 +37,54 @@
       </div>
       </div>
       <div class="panel">
-        <div class="filter-row">
-          <div class="field"><label>Dari Tanggal</label><input type="date" id="repFrom"></div>
-          <div class="field"><label>Sampai Tanggal</label><input type="date" id="repTo"></div>
-          <div class="field" style="flex:0 0 auto;"><label>&nbsp;</label><button class="btn btn-outline btn-compact" onclick="renderReport()">Terapkan Filter</button></div>
-          <div class="field" style="flex:0 0 auto;"><label>&nbsp;</label><button class="btn btn-primary btn-compact" onclick="window.print()">Unduh / Cetak PDF</button></div>
-        </div>
+        
+<div class="filter-row">
+  <div class="field">
+    <label>Transaksi — Dari Tanggal</label>
+    <input type="date" id="repFrom">
+  </div>
+  <div class="field">
+    <label>Transaksi — Sampai Tanggal</label>
+    <input type="date" id="repTo">
+  </div>
+  <div class="field">
+    <label>Metode Pembayaran</label>
+    <select id="repPaymentMethod">
+      <option value="">Semua Metode</option>
+      <option value="tunai">Tunai</option>
+      <option value="qris">QRIS</option>
+      <option value="debit">Debit</option>
+      <option value="transfer">Transfer Bank</option>
+    </select>
+  </div>
+  <div class="field" style="flex:0 0 auto;">
+    <label>&nbsp;</label>
+    <button class="btn btn-outline btn-compact"
+      onclick="renderReport()">Terapkan Filter</button>
+  </div>
+  <div class="field" style="flex:0 0 auto;">
+    <label>&nbsp;</label>
+    <button class="btn btn-primary btn-compact"
+      onclick="window.print()">Unduh / Cetak PDF</button>
+  </div>
+</div>
+
+<div class="filter-row">
+  <div class="field">
+    <label>Pembelian Stok — Dari Tanggal</label>
+    <input type="date" id="repSpendFrom">
+  </div>
+  <div class="field">
+    <label>Pembelian Stok — Sampai Tanggal</label>
+    <input type="date" id="repSpendTo">
+  </div>
+  <div class="field" style="flex:0 0 auto;">
+    <label>&nbsp;</label>
+    <button class="btn btn-outline btn-compact"
+      onclick="renderReport()">Filter Pembelian Stok</button>
+  </div>
+</div>
+
         <div class="grid">
           <div class="stat-card"><div class="num" id="repTotalSales">Rp 0</div><div class="lbl">Total Penjualan</div></div>
           <div class="stat-card"><div class="num" id="repTotalTrx">0</div><div class="lbl">Jumlah Transaksi</div></div>

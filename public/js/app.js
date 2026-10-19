@@ -984,44 +984,51 @@ function renderCart(){
   document.getElementById('cartDiscount').textContent = '- '+rupiah(t.disc);
 }
 
-// Simpan pesanan ke database (status belum bayar), muncul di Riwayat Transaksi
-async function saveOrder(){
-  if(!cart.length){ alert('Belum ada pesanan.'); return; }
+  async function saveOrder(){
+  if(!cart.length){ showAlertModal('Belum ada pesanan. Pilih menu terlebih dahulu.'); return; }
   const btn = document.getElementById('saveOrderBtn');
   btn.disabled = true;
   try{
+    // simpan dulu info untuk notifikasi, sebelum form di-reset
+    const totals   = computeTotals();
+    const custName = document.getElementById('custName').value.trim();
+    const typeNow  = selectedOrderType;
+
     const res = await fetch(document.getElementById('kasirPage').dataset.orderUrl, {
       method: 'POST',
       headers: {'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':CSRF_TOKEN},
       body: JSON.stringify({
-  customer_name: document.getElementById('custName').value.trim() || null,
-  service_type: selectedOrderType,
-  discount: computeTotals().disc,
-  items: cart.map(c => ({menu_id: c.id, qty: c.qty}))
-})
+        customer_name: custName || null,
+        service_type: typeNow,
+        discount: totals.disc,
+        items: cart.map(c => ({menu_id: c.id, qty: c.qty}))
+      })
     });
-    const data = await res.json();
+        const data = await res.json();
     if(!res.ok){
-      alert(data.errors ? Object.values(data.errors)[0][0] : (data.message || 'Gagal menyimpan pesanan.'));
+      showAlertModal(
+        data.errors ? Object.values(data.errors)[0][0] : (data.message || 'Gagal menyimpan pesanan.'),
+        'Gagal'
+      );
       return;
     }
-    cart = []; appliedDiscount = 0;
-    document.getElementById('discountInput').value = '';
-    document.getElementById('custName').value = '';
-    selectOrderType('dine-in');
-    renderCart();
+
+
     showOrderSaved({
-  invoice: data.invoice_number,
-  type: orderType,
-  customer: document.getElementById('custName').value.trim(),
-  total: document.getElementById('cartTotal').textContent
-});
-  }catch(e){
-    alert('Terjadi kesalahan jaringan.');
+      invoice: data.invoice_number || '-',
+      type: typeNow,
+      customer: custName,
+      total: rupiah(totals.total)
+    });
+    
+    }catch(e){
+    console.error(e);
+    showAlertModal('Terjadi kesalahan: ' + e.message, 'Gagal');
   }finally{
     btn.disabled = false;
   }
 }
+
 
 const PAY_LABELS={tunai:'Tunai',qris:'QRIS',transfer:'Transfer Bank'};
 const PAY_ENUM={tunai:'cash',qris:'qris',transfer:'transfer'};
@@ -1272,47 +1279,154 @@ function stockStatusHTML(n){
        : n<=5 ? '<span style="color:var(--accent);font-weight:600">Menipis</span>'
        : '<span style="color:var(--ok);font-weight:600">Aman</span>';
 }
-function renderStockReport(){
-  const inv=getInv(), menu=getMenu();
-  const cat=document.getElementById('stCat').value;
-  const from=document.getElementById('stFrom').value, to=document.getElementById('stTo').value;
 
-  const items=inv.filter(p=>!cat||p.category===cat).sort((a,b)=>a.stock-b.stock);
-  const habis=items.filter(p=>p.stock<=0).length;
-  const menipis=items.filter(p=>p.stock>0&&p.stock<=5).length;
+function renderReport() {
+  const from = document.getElementById('repFrom')?.value || '';
+  const to = document.getElementById('repTo')?.value || '';
+  const method = (
+    document.getElementById('repPaymentMethod')?.value || ''
+  ).toLowerCase();
 
-  const logs=getLog().filter(l=>{
-    const d=l.date.slice(0,10);
-    if((from&&d<from)||(to&&d>to)) return false;
-    if(!cat) return true;
-    const it=inv.find(x=>x.id===l.itemId);
-    return it && it.category===cat;
-  }).slice().reverse();
-  const masuk=logs.filter(l=>l.type==='masuk').reduce((s,l)=>s+l.qty,0);
-  const keluar=logs.filter(l=>l.type==='keluar').reduce((s,l)=>s+l.qty,0);
+  const stockFrom =
+    document.getElementById('repSpendFrom')?.value || '';
+  const stockTo =
+    document.getElementById('repSpendTo')?.value || '';
 
-  document.getElementById('stTotal').textContent=items.length;
-  document.getElementById('stAman').textContent=items.length-habis-menipis;
-  document.getElementById('stMenipis').textContent=menipis;
-  document.getElementById('stHabis').textContent=habis;
-  document.getElementById('stMasuk').textContent=masuk;
-  document.getElementById('stKeluar').textContent=keluar;
-  const spend=logs.filter(l=>l.type==='masuk'&&l.cost>0).reduce((s,l)=>s+l.cost,0);
-  document.getElementById('stSpend').textContent=rupiah(spend);
+  // Samakan penamaan metode pembayaran.
+  const normalizePayment = value => {
+    const p = String(value || '').toLowerCase().trim();
 
-  document.getElementById('stListBody').innerHTML = items.length ? items.map(p=>`
-    <tr><td>${p.name}</td><td>${CAT_LABEL[p.category]||p.category}</td><td>${p.stock}</td><td>${p.unit}</td><td>${stockStatusHTML(p.stock)}</td></tr>`).join('')
-    : `<tr><td colspan="5" class="empty">Belum ada barang</td></tr>`;
+    if (['tunai', 'cash', 'uang tunai'].includes(p)) return 'tunai';
+    if (['qris', 'qr'].includes(p)) return 'qris';
+    if (['debit', 'kartu debit'].includes(p)) return 'debit';
+    if (['transfer', 'transfer bank'].includes(p)) return 'transfer';
 
-  document.getElementById('stMenuBody').innerHTML = menu.length ? menu.slice().sort((a,b)=>a.stock-b.stock).map(p=>`
-    <tr><td>${p.code||'-'}</td><td>${p.name}</td><td><span class="tag tag-menu">${p.category}</span></td><td>${p.stock}</td><td>${stockStatusHTML(p.stock)}</td></tr>`).join('')
-    : `<tr><td colspan="5" class="empty">Belum ada menu</td></tr>`;
+    return p;
+  };
 
-  document.getElementById('stLogBody').innerHTML = logs.length ? logs.map(l=>{
-    const it=inv.find(x=>x.id===l.itemId);
-    return `<tr><td>${new Date(l.date).toLocaleString('id-ID')}</td><td>${it?it.name:'-'}</td><td>${l.type==='masuk'?'Masuk':'Keluar'}</td><td>${l.qty}</td><td>${it?it.unit:'-'}</td><td>${l.type==='masuk'&&l.cost>0?rupiah(l.cost):'-'}</td><td>${l.note||'-'}</td></tr>`;
-  }).join('') : `<tr><td colspan="7" class="empty">Tidak ada pergerakan stok pada rentang ini</td></tr>`;
+  // Filter transaksi berdasarkan tanggal dan metode pembayaran.
+  const trx = getTrx()
+    .filter(t => {
+      const d = String(t.date || '').slice(0, 10);
+      const payment = normalizePayment(t.payment);
+
+      return (!from || d >= from) &&
+             (!to || d <= to) &&
+             (!method || payment === method);
+    })
+    .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const sales = trx.reduce((sum, t) => sum + Number(t.total || 0), 0);
+
+  document.getElementById('repTotalSales').textContent = rupiah(sales);
+  document.getElementById('repTotalTrx').textContent = trx.length;
+
+  // Laporan keuangan untuk superadmin.
+  const fin = document.getElementById('repFinance');
+
+  if (fin) {
+    const isSuper = currentUser().role === 'superadmin';
+    fin.style.display = isSuper ? 'block' : 'none';
+
+    if (isSuper) {
+      // Tanggal pembelian stok memakai filter tersendiri.
+      const buys = getLog()
+        .filter(l => {
+          const d = String(l.date || '').slice(0, 10);
+
+          return l.type === 'masuk' &&
+                 Number(l.cost) > 0 &&
+                 (!stockFrom || d >= stockFrom) &&
+                 (!stockTo || d <= stockTo);
+        })
+        .reverse();
+
+      const spend = buys.reduce(
+        (sum, l) => sum + Number(l.cost || 0), 0
+      );
+
+      const net = sales - spend;
+
+      document.getElementById('repSpend').textContent = rupiah(spend);
+
+      const netEl = document.getElementById('repNet');
+      netEl.textContent = rupiahNet(net);
+      netEl.style.color = net < 0 ? 'var(--danger)' : '';
+
+      const inv = getInv();
+
+      document.getElementById('repSpendBody').innerHTML =
+        buys.length
+          ? buys.map(l => {
+              const it = inv.find(x => x.id === l.itemId);
+
+              return `<tr>
+                <td>${new Date(l.date).toLocaleString('id-ID')}</td>
+                <td>${it ? it.name : '-'}</td>
+                <td>${l.qty} ${it ? it.unit : ''}</td>
+                <td>${rupiah(l.cost)}</td>
+              </tr>`;
+            }).join('')
+          : `<tr><td colspan="4" class="empty">
+              Belum ada pembelian stok pada rentang ini
+            </td></tr>`;
+    }
+  }
+
+  // Rekap metode pembayaran berdasarkan transaksi yang sudah difilter.
+  const payAgg = {};
+
+  trx.forEach(t => {
+    const key = normalizePayment(t.payment) || '-';
+
+    if (!payAgg[key]) {
+      payAgg[key] = { count: 0, total: 0 };
+    }
+
+    payAgg[key].count++;
+    payAgg[key].total += Number(t.total || 0);
+  });
+
+  const payEntries = Object.entries(payAgg)
+    .sort((a, b) => b[1].total - a[1].total);
+
+  document.getElementById('repPayBody').innerHTML =
+    payEntries.length
+      ? payEntries.map(([m, v]) => `
+          <tr>
+            <td>${PAY_LABELS[m] || ({
+              tunai: 'Tunai',
+              qris: 'QRIS',
+              debit: 'Debit',
+              transfer: 'Transfer Bank'
+            })[m] || m}</td>
+            <td>${v.count}</td>
+            <td>${rupiah(v.total)}</td>
+          </tr>
+        `).join('')
+      : `<tr><td colspan="3" class="empty">
+          Belum ada transaksi pada rentang ini
+        </td></tr>`;
+
+  // Riwayat transaksi mengikuti filter tanggal dan metode.
+  document.getElementById('repBody').innerHTML =
+    trx.length
+      ? trx.map(t => `
+          <tr>
+            <td>${new Date(t.date).toLocaleString('id-ID')}</td>
+            <td>${(t.items || []).map(i =>
+              `${i.name} x${i.qty}`
+            ).join(', ')}</td>
+            <td>${(PAY_LABELS[normalizePayment(t.payment)] ||
+              normalizePayment(t.payment) || '-').toUpperCase()}</td>
+            <td>${rupiah(t.total)}</td>
+          </tr>
+        `).join('')
+      : `<tr><td colspan="4" class="empty">
+          Tidak ada transaksi pada rentang ini
+        </td></tr>`;
 }
+
 // ===== PROFIL (modal) =====
 function editProfile(on){
   const modal=document.getElementById('profileModal');
