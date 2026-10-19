@@ -7,6 +7,7 @@ use App\Http\Controllers\MenuController;
 use App\Http\Controllers\QrMenuController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\OrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -145,7 +146,7 @@ Route::middleware('auth')->group(function () use ($role) {
         })->name('stok.index');
     });
 
-        // Kasir saja
+            // Kasir saja
     Route::group(['middleware' => [$role('kasir')]], function () {
         Route::get('/kasir', function () {
             return view('kasir.index', [
@@ -155,7 +156,16 @@ Route::middleware('auth')->group(function () use ($role) {
 
         Route::get('/kasir/menu-data', [MenuController::class, 'kasirData'])
             ->name('kasir.menu-data');
+
+        Route::post('/kasir/orders', [OrderController::class, 'store'])
+            ->name('kasir.orders.store');
     });
+    Route::get('/riwayat', fn () => view('riwayat.index', ['pageKey' => 'riwayat']))
+    ->name('riwayat.index');
+Route::get('/riwayat/data', [OrderController::class, 'history'])
+    ->name('riwayat.data');
+Route::post('/riwayat/{id}/pay', [OrderController::class, 'pay'])
+    ->name('riwayat.pay');
 
     // Semua role yang sudah login
     Route::get('/laporan', function () {

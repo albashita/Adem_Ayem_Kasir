@@ -1,6 +1,7 @@
 const LSU='kasir_users', LSM='kasir_menu', LST='kasir_transactions', LSL='kasir_stocklog', LSI='kasir_inventory', LSS='kasir_session';
 let cart=[], selectedPay='tunai', selectedOrderType='dine-in', appliedDiscount=0, currentPosCategory='semua', menuEmoji='🍽️', lastTrx=null;
 const EMOJIS=['🍚','🍜','🍗','🍔','🍟','🥗','🍕','🥤','☕','🧋','🍵','🧃'];
+let histOrders=[], histFilter='semua', payingOrder=null;
 
 function seedIfEmpty(){
   { const us=JSON.parse(localStorage.getItem(LSU)||'[]'); let ch=false; us.forEach(u=>{ if(u.username==='kasir'&&u.name==='Kasir Toko'){u.name='Adem Ayem';ch=true;} }); if(ch) localStorage.setItem(LSU,JSON.stringify(us)); }
@@ -82,6 +83,7 @@ const NAV=[
   {key:'menu',label:'Kelola Menu',roles:['superadmin']},
   {key:'stok',label:'Stok Barang',roles:['administrator']},
   {key:'kasir',label:'Kasir',roles:['kasir']},
+  {key:'riwayat',label:'Riwayat Transaksi',roles:['kasir']},
   {key:'laporan',label:'Laporan',roles:['superadmin','administrator','kasir']},
   {key:'profil',label:'Profil Saya',roles:['superadmin','administrator','kasir']}
 ];
@@ -152,6 +154,7 @@ function bootstrapPage(){
   if(PAGE_KEY==='menu') renderMenuAdmin();
   if(PAGE_KEY==='stok') renderStok();
   if(PAGE_KEY==='kasir') loadPosMenu();
+  if(PAGE_KEY==='riwayat') loadHistory();
   if(PAGE_KEY==='profil') renderProfil();
   if(PAGE_KEY==='laporan'){
     const isAdmin=user.role==='administrator';
@@ -899,6 +902,7 @@ async function loadPosMenu(){
   }
   renderPOS();
 }
+
 function renderPOS(){
   const menu = posMenu;
   const cats = ['semua', ...new Set(menu.map(p=>p.category))];
@@ -915,8 +919,22 @@ function renderPOS(){
       <div class="price">${rupiah(p.price)}</div>
     </div>`).join('')
     : `<div class="empty">Menu tidak ditemukan</div>`;
-  document.querySelectorAll('#orderTypeToggle button').forEach(b=>b.classList.toggle('sel', b.dataset.t===selectedOrderType));
+  highlightOrderType();
   renderCart();
+}
+
+function selectPosCat(c){
+  currentPosCategory = c;
+  renderPOS();
+}
+
+function highlightOrderType(){
+  document.querySelectorAll('#orderTypeToggle button')
+    .forEach(b => b.classList.toggle('sel', b.dataset.t === selectedOrderType));
+}
+function selectOrderType(t){
+  selectedOrderType = t;
+  highlightOrderType();
 }
 
 function addToCart(id){
@@ -927,45 +945,86 @@ function addToCart(id){
   else cart.push({id:p.id, name:p.name, price:p.price, qty:1});
   renderCart();
 }
-
 function changeQty(id, delta){
   const item = cart.find(c => c.id === id); if(!item) return;
   item.qty += delta;
   if(item.qty <= 0) cart = cart.filter(c => c.id !== id);
   renderCart();
 }
-function removeFromCart(id){ cart=cart.filter(c=>c.id!==id); renderCart(); }
-const TAX_RATE=0.10;
+function removeFromCart(id){ cart = cart.filter(c => c.id !== id); renderCart(); }
+
+const TAX_RATE = 0.10;
 function cartSubtotal(){ return cart.reduce((s,c)=>s+c.price*c.qty,0); }
 function computeTotals(){
-  const sub=cartSubtotal();
-  const disc=Math.min(appliedDiscount||0, sub);
-  const tax=Math.round(sub*TAX_RATE);
-  return {sub,disc,tax,total:sub-disc+tax};
+  const sub  = cartSubtotal();
+  const disc = Math.min(appliedDiscount||0, sub);
+  const tax  = Math.round(sub*TAX_RATE);
+  return {sub, disc, tax, total: sub-disc+tax};
 }
 function applyDiscount(){
-  const sub=cartSubtotal();
-  let v=Number(document.getElementById('discountInput').value)||0;
+  const sub = cartSubtotal();
+  let v = Number(document.getElementById('discountInput').value)||0;
   if(v<0) v=0; if(v>sub) v=sub;
-  appliedDiscount=v;
+  appliedDiscount = v;
   renderCart();
 }
+
 function renderCart(){
-  const body=document.getElementById('cartBody');
+  const body = document.getElementById('cartBody');
   body.innerHTML = cart.length ? cart.map(c=>`
     <div class="cart-item"><div>${c.name}<br><span style="color:var(--muted);font-size:12px">${rupiah(c.price)} x ${c.qty}</span></div>
     <div class="qty-ctrl"><button onclick="changeQty('${c.id}',-1)">−</button><span style="margin:0 6px">${c.qty}</span><button onclick="changeQty('${c.id}',1)">+</button>
     <button onclick="removeFromCart('${c.id}')" style="margin-left:6px;color:var(--danger);border:none;background:none;cursor:pointer">✕</button></div></div>`).join('')
     : '<div class="empty">Belum ada item</div>';
-  const t=computeTotals();
-  document.getElementById('cartSubtotal').textContent=rupiah(t.sub);
-  document.getElementById('cartTax').textContent=rupiah(t.tax);
-  document.getElementById('cartTotal').textContent = rupiah(t.total);
+  const t = computeTotals();
+  document.getElementById('cartSubtotal').textContent = rupiah(t.sub);
+  document.getElementById('cartTax').textContent      = rupiah(t.tax);
+  document.getElementById('cartTotal').textContent    = rupiah(t.total);
   document.getElementById('cartDiscountRow').style.display = t.disc>0 ? 'flex' : 'none';
   document.getElementById('cartDiscount').textContent = '- '+rupiah(t.disc);
 }
 
-const PAY_LABELS={tunai:'Tunai',qris:'QRIS',kartu:'Kartu Debit/Kredit',transfer:'Transfer Bank'};
+// Simpan pesanan ke database (status belum bayar), muncul di Riwayat Transaksi
+async function saveOrder(){
+  if(!cart.length){ alert('Belum ada pesanan.'); return; }
+  const btn = document.getElementById('saveOrderBtn');
+  btn.disabled = true;
+  try{
+    const res = await fetch(document.getElementById('kasirPage').dataset.orderUrl, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':CSRF_TOKEN},
+      body: JSON.stringify({
+  customer_name: document.getElementById('custName').value.trim() || null,
+  service_type: selectedOrderType,
+  discount: computeTotals().disc,
+  items: cart.map(c => ({menu_id: c.id, qty: c.qty}))
+})
+    });
+    const data = await res.json();
+    if(!res.ok){
+      alert(data.errors ? Object.values(data.errors)[0][0] : (data.message || 'Gagal menyimpan pesanan.'));
+      return;
+    }
+    cart = []; appliedDiscount = 0;
+    document.getElementById('discountInput').value = '';
+    document.getElementById('custName').value = '';
+    selectOrderType('dine-in');
+    renderCart();
+    showOrderSaved({
+  invoice: data.invoice_number,
+  type: orderType,
+  customer: document.getElementById('custName').value.trim(),
+  total: document.getElementById('cartTotal').textContent
+});
+  }catch(e){
+    alert('Terjadi kesalahan jaringan.');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+const PAY_LABELS={tunai:'Tunai',qris:'QRIS',transfer:'Transfer Bank'};
+const PAY_ENUM={tunai:'cash',qris:'qris',transfer:'transfer'};
 function openPaymentModal(){
   if(!cart.length){alert('Belum ada pesanan.');return;}
   selectedPay='tunai';
@@ -981,35 +1040,27 @@ function selectPayModal(m){
   document.getElementById('cashSection').style.display = m==='tunai' ? 'block' : 'none';
   updateChange();
 }
+function currentPayTotal(){ return payingOrder ? payingOrder.total : computeTotals().total; }
 function setQuickAmt(v){
-  const total=computeTotals().total;
+  const total=currentPayTotal();
   document.getElementById('cashReceived').value = v==='exact' ? total : v;
   updateChange();
 }
 function updateChange(){
-  const total=computeTotals().total;
+  const total=currentPayTotal();
   const received=Number(document.getElementById('cashReceived').value)||0;
   const change=received-total;
   document.getElementById('changeAmt').textContent = rupiah(change>0?change:0);
 }
-function confirmPayment(){
-  const {sub,disc,tax,total}=computeTotals();
-  let received=null, change=0;
-  if(selectedPay==='tunai'){
-    received=Number(document.getElementById('cashReceived').value)||0;
-    if(received<total){alert('Uang diterima kurang dari total.');return;}
-    change=received-total;
-  }
-  const customer=document.getElementById('custName').value.trim()||'Umum';
-  const existingTrx=getTrx();
-  const trxNo='SR-'+new Date().getFullYear()+'-'+String(existingTrx.length+1).padStart(4,'0');
-  const trxItem={id:'t'+Date.now(),no:trxNo,date:new Date().toISOString(),items:cart.map(c=>({name:c.name,qty:c.qty,price:c.price})),subtotal:sub,discount:disc,tax,total,payment:selectedPay,received,change,kasir:currentUser().name,customer,orderType:selectedOrderType};
-  existingTrx.push(trxItem); setTrx(existingTrx);
-  lastTrx=trxItem;
-  cart=[]; appliedDiscount=0; document.getElementById('discountInput').value='';
-  renderPOS();
-  closePaymentModal();
-  openReceiptModal(trxItem);
+function closeReceiptModal(){
+  document.getElementById('receiptModal').style.display='none';
+  const c=document.getElementById('custName'); if(c) c.value='';
+}
+  function closeReceiptModal(){
+  document.getElementById('receiptModal').style.display='none';
+  const c=document.getElementById('custName'); if(c) c.value='';
+}
+function receiptRowsHTML(t){
 }
 function receiptRowsHTML(t){
   const itemsHtml=t.items.map(i=>`<div class="rline"><span>${i.name}<br>&nbsp;&nbsp;${i.qty} x ${rupiah(i.price)}</span><span>${rupiah(i.price*i.qty)}</span></div>`).join('');
@@ -1040,10 +1091,6 @@ function openReceiptModal(t){
     <div style="text-align:center;font-size:11.5px;">Terima kasih atas kunjungan Anda<br>Simpan struk ini sebagai bukti</div>`;
   document.getElementById('fakeQr').innerHTML=buildFakeQr(t.no)+`<div style="font-size:11px;color:var(--muted);margin-top:4px;">scan untuk struk digital</div>`;
   document.getElementById('receiptModal').style.display='flex';
-}
-function closeReceiptModal(){
-  document.getElementById('receiptModal').style.display='none';
-  document.getElementById('custName').value='';
 }
 function buildFakeQr(seed){
   const size=21, cell=6;
@@ -1340,7 +1387,92 @@ if(document.getElementById('loginScreen')){
   // Halaman aplikasi (dashboard/menu/stok/kasir/laporan/profil/pengguna).
   bootstrapPage();
 }
+// ===== RIWAYAT TRANSAKSI =====
+const PAY_FROM_ENUM={cash:'tunai',qris:'qris',transfer:'transfer'};
 
+async function loadHistory(){
+  const page=document.getElementById('riwayatPage');
+  try{
+    const res=await fetch(page.dataset.listUrl,{headers:{'Accept':'application/json'}});
+    if(!res.ok) throw new Error('Gagal memuat riwayat.');
+    histOrders=await res.json();
+  }catch(e){
+    document.getElementById('histBody').innerHTML='<tr><td colspan="7" class="empty">'+e.message+'</td></tr>';
+    return;
+  }
+  renderHistory();
+}
+function setHistFilter(f){ histFilter=f; renderHistory(); }
+function renderHistory(){
+  document.querySelectorAll('#histTabs .cat-tab').forEach(b=>b.classList.toggle('active', b.dataset.f===histFilter));
+  const list=histOrders.filter(o=>histFilter==='semua' || (histFilter==='belum' ? o.status==='pending' : o.status==='completed'));
+  document.getElementById('histBody').innerHTML = list.length ? list.map(o=>{
+    const take=o.service_type==='takeaway';
+    const st=o.status==='completed' ? ['badge-paid','Sudah bayar'] : o.status==='pending' ? ['badge-unpaid','Belum bayar'] : ['badge-unpaid','Dibatalkan'];
+    const act=o.status==='pending' ? `<button onclick="openPayOrder(${o.id})">Bayar</button>`
+            : o.status==='completed' ? `<button onclick="showOrderReceipt(${o.id})">Struk</button>` : '-';
+    return `<tr>
+      <td>${new Date(o.date).toLocaleString('id-ID')}</td>
+      <td>${escapeMenuHTML(o.no)}</td>
+      <td>${escapeMenuHTML(o.customer)}</td>
+      <td><span class="badge ${take?'badge-take':'badge-dine'}">${take?'Bawa Pulang':'Makan di Tempat'}</span></td>
+      <td>${rupiah(o.total)}</td>
+      <td><span class="badge ${st[0]}">${st[1]}</span></td>
+      <td class="row-actions">${act}</td></tr>`;
+  }).join('') : '<tr><td colspan="7" class="empty">Belum ada pesanan</td></tr>';
+}
+
+function histToTrx(o){
+  return {id:o.id,no:o.no,date:o.date,items:o.items,subtotal:o.subtotal,discount:o.discount,tax:o.tax,total:o.total,
+    payment:PAY_FROM_ENUM[o.payment_method]||null,received:o.total,change:0,
+    kasir:currentUser().name,customer:o.customer,orderType:o.service_type};
+}
+function showOrderReceipt(id){
+  const o=histOrders.find(x=>x.id===id); if(!o) return;
+  lastTrx=histToTrx(o);
+  openReceiptModal(lastTrx);
+}
+function openPayOrder(id){
+  payingOrder=histOrders.find(o=>o.id===id); if(!payingOrder) return;
+  document.getElementById('payModalInfo').textContent=payingOrder.no+' · '+payingOrder.customer;
+  document.getElementById('payModalTotal').textContent=rupiah(payingOrder.total);
+  document.getElementById('cashReceived').value='';
+  selectPayModal('tunai');
+  document.getElementById('paymentModal').style.display='flex';
+}
+async function confirmPayOrder(){
+  if(!payingOrder) return;
+  const total=payingOrder.total;
+  let received=null, change=0;
+  if(selectedPay==='tunai'){
+    received=Number(document.getElementById('cashReceived').value)||0;
+    if(received<total){ alert('Uang diterima kurang dari total.'); return; }
+    change=received-total;
+  }
+  const btn=document.getElementById('payConfirmBtn');
+  btn.disabled=true;
+  try{
+    const base=document.getElementById('riwayatPage').dataset.payUrl;
+    const res=await fetch(base+'/'+payingOrder.id+'/pay',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Accept':'application/json','X-CSRF-TOKEN':CSRF_TOKEN},
+      body:JSON.stringify({payment_method:PAY_ENUM[selectedPay],received})
+    });
+    const data=await res.json();
+    if(!res.ok){
+      alert(data.errors ? Object.values(data.errors)[0][0] : (data.message||'Gagal memproses pembayaran.'));
+      return;
+    }
+    lastTrx={...histToTrx(payingOrder), payment:selectedPay, received:selectedPay==='tunai'?received:null, change};
+    closePaymentModal();
+    openReceiptModal(lastTrx);
+    await loadHistory();
+  }catch(e){
+    alert('Terjadi kesalahan jaringan.');
+  }finally{
+    btn.disabled=false;
+  }
+}
 /* ===== QR MENU ===== */
 function qrSvg(text,px){
   const qr=new QRLib(-1,1);

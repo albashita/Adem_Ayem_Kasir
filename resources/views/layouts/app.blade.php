@@ -1,5 +1,11 @@
+
 @php
-    $roleMap = ['owner' => 'superadmin', 'admin' => 'administrator', 'kasir' => 'kasir'];
+    $roleMap = [
+        'owner' => 'superadmin',
+        'admin' => 'administrator',
+        'kasir' => 'kasir',
+    ];
+
     $serverUser = [
         'id'       => auth()->user()->id_user,
         'name'     => auth()->user()->name,
@@ -13,53 +19,76 @@
         'menu.index'     => 'menu',
         'stok.index'     => 'stok',
         'kasir.index'    => 'kasir',
+        'riwayat.index'  => 'riwayat',
         'laporan.index'  => 'laporan',
         'profile.index'  => 'profil',
     ];
+
     $pageKey = $pageKeyMap[request()->route()?->getName()] ?? 'dashboard';
 @endphp
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>@yield('title', 'Adem Ayem')</title>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{{ asset('css/app.css') }}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
+    <title>@yield('title', 'Adem Ayem')</title>
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+        rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="{{ asset('css/app.css') }}">
 </head>
+
 <body>
 
-<div id="appScreen" style="display:block;">
-<div class="shell">
-  @include('layouts.sidebar')
-  <div class="main">
-    @include('layouts.navbar')
-    @yield('content')
-  </div>
-</div>
-</div>
+    <div id="appScreen" style="display:block;">
+        <div class="shell">
 
-<div id="receiptPrint"></div>
+            @include('layouts.sidebar')
 
-<script>
-  const ROUTE_URLS = {
-    dashboard: @json(route('dashboard')),
-    pengguna: @json(route('pengguna.index')),
-    menu: @json(route('menu.index')),
-    stok: @json(route('stok.index')),
-    kasir: @json(route('kasir.index')),
-    laporan: @json(route('laporan.index')),
-    profil: @json(route('profile.index')),
-    login: @json(route('login'))
-  };
-  const FIRST_PAGE_BY_ROLE = { superadmin:'dashboard', administrator:'dashboard', kasir:'kasir' };
+            <div class="main">
+                @include('layouts.navbar')
 
-  // Data user dari sesi Laravel (menggantikan login palsu di localStorage)
-  const SERVER_USER = @json($serverUser);
-  const LOGOUT_URL = @json(route('logout'));
-  const CSRF_TOKEN = @json(csrf_token());
-  const PAGE_KEY = @json($pageKey);
-</script>
-<script src="{{ asset('js/app.js') }}"></script>
+                @yield('content')
+            </div>
+
+        </div>
+    </div>
+
+    <div id="receiptPrint"></div>
+
+    <script>
+        const ROUTE_URLS = {
+            dashboard: @json(route('dashboard')),
+            pengguna: @json(route('pengguna.index')),
+            menu: @json(route('menu.index')),
+            stok: @json(route('stok.index')),
+            kasir: @json(route('kasir.index')),
+            riwayat: @json(url('/riwayat')),
+            laporan: @json(route('laporan.index')),
+            profil: @json(route('profile.index')),
+            login: @json(route('login'))
+        };
+
+        const FIRST_PAGE_BY_ROLE = {
+            superadmin: 'dashboard',
+            administrator: 'dashboard',
+            kasir: 'kasir'
+        };
+
+        // Data user dari sesi Laravel
+        const SERVER_USER = @json($serverUser);
+
+        const LOGOUT_URL = @json(route('logout'));
+        const CSRF_TOKEN = @json(csrf_token());
+        const PAGE_KEY = @json($pageKey);
+    </script>
+
+    <script src="{{ asset('js/app.js') }}"></script>
+
 </body>
 </html>

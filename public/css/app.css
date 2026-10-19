@@ -926,5 +926,18 @@ body.print-receipt-mode #receiptPrint{display:block;}
 .menu-page .row-actions button {
     margin: 0;
 }
-
+.saved-check{
+  width:64px;height:64px;margin:0 auto;border-radius:50%;
+  background:var(--brand);color:#fff;font-size:34px;line-height:64px;
+  animation:savedPop .35s ease;
+}
+.saved-inv{
+  font-family:monospace;font-size:16px;font-weight:700;
+  background:#f3f5f2;border-radius:8px;padding:8px 12px;margin:6px 0 14px;
+}
+.saved-summary{text-align:left;border-top:1px dashed #d8ddd6;padding-top:10px;}
+@keyframes savedPop{
+  from{transform:scale(.4);opacity:0}
+  to{transform:scale(1);opacity:1}
+}
 

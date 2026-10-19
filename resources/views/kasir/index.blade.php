@@ -6,7 +6,8 @@
 @section('content')
       <div class="pos-layout" id="kasirPage"
      data-menu-url="{{ route('kasir.menu-data') }}"
-     data-qr-url="http://192.168.1.7:8000/qr-menu">
+     data-order-url="{{ route('kasir.orders.store') }}"
+     data-qr-url="http://10.80.2.0/qr-menu">
         <div class="pos-products panel"><h3>Pesanan Pelanggan — Pilih Menu</h3>
           <div class="pos-toolbar"><input id="posSearch" class="pos-search" placeholder="Cari menu..." oninput="renderPOS()"><button class="btn btn-outline btn-compact" onclick="openMenuQr()">QR Menu</button></div>
           <div class="cat-tabs" id="posCatTabs"></div>
@@ -27,7 +28,7 @@
           <div class="rline-mini" id="cartDiscountRow" style="display:none;"><span>Diskon</span><span id="cartDiscount">- Rp 0</span></div>
           <div class="rline-mini"><span>Pajak PB1 (10%)</span><span id="cartTax">Rp 0</span></div>
           <div class="total-row"><span>Total</span><span id="cartTotal">Rp 0</span></div>
-          <button class="btn btn-accent" style="width:100%" onclick="openPaymentModal()">Simpan</button>
+          <button class="btn btn-accent" id="saveOrderBtn" style="width:100%" onclick="saveOrder()">Simpan</button>
         </div>
       </div>
 
@@ -39,7 +40,6 @@
         <div class="paymethod-grid" id="payMethodGrid">
           <div class="paymethod-card" data-m="tunai" onclick="selectPayModal('tunai')"><div class="pm-ic">💵</div><div><b>Tunai</b><div class="pm-sub">Uang kembali otomatis</div></div></div>
           <div class="paymethod-card" data-m="qris" onclick="selectPayModal('qris')"><div class="pm-ic">📱</div><div><b>QRIS</b><div class="pm-sub">Semua e-wallet & bank</div></div></div>
-          <div class="paymethod-card" data-m="kartu" onclick="selectPayModal('kartu')"><div class="pm-ic">💳</div><div><b>Kartu Debit/Kredit</b><div class="pm-sub">Mesin EDC</div></div></div>
           <div class="paymethod-card" data-m="transfer" onclick="selectPayModal('transfer')"><div class="pm-ic">🏦</div><div><b>Transfer Bank</b><div class="pm-sub">BCA · Mandiri · BRI</div></div></div>
         </div>
         <div id="cashSection" style="display:none;">
@@ -79,4 +79,49 @@
         <button class="btn btn-primary" style="margin-top:14px;" onclick="printMenuQr()">Cetak QR Menu</button>
       </div>
     </div>
+    <div id="orderSavedModal" class="modal-overlay" style="display:none;">
+  <div class="modal-box" style="text-align:center;max-width:380px;">
+    <div class="modal-close" onclick="closeOrderSaved()">✕</div>
+    <div class="saved-check">✓</div>
+    <h3 style="margin:12px 0 4px;">Pesanan tersimpan</h3>
+    <div style="font-size:13px;color:var(--muted);">Nomor pesanan</div>
+    <div class="saved-inv" id="savedInvNo">-</div>
+    <div class="saved-summary">
+      <div class="rline-mini"><span>Tipe</span><span id="savedType">-</span></div>
+      <div class="rline-mini"><span>Pelanggan</span><span id="savedCust">-</span></div>
+      <div class="rline-mini"><span>Total</span><b id="savedTotal">Rp 0</b></div>
+    </div>
+    <div class="form-row" style="margin-top:16px;">
+      <button class="btn btn-outline" style="flex:1;" onclick="closeOrderSaved()">Pesanan Baru</button>
+      <button class="btn btn-primary" style="flex:1;" onclick="payFromSaved()">Bayar Sekarang</button>
+    </div>
+  </div>
+</div>
+@push('scripts')
+<script>
+let lastSavedOrder = null;
+
+function showOrderSaved(order) {
+  lastSavedOrder = order;
+  document.getElementById('savedInvNo').textContent = order.invoice;
+  document.getElementById('savedType').textContent =
+    order.type === 'takeaway' ? 'Bawa Pulang' : 'Makan di Tempat';
+  document.getElementById('savedCust').textContent = order.customer || '-';
+  document.getElementById('savedTotal').textContent = order.total;
+  document.getElementById('orderSavedModal').style.display = 'flex';
+}
+
+function closeOrderSaved() {
+  document.getElementById('orderSavedModal').style.display = 'none';
+  if (typeof resetCart === 'function') resetCart(); // ganti dengan fungsi reset keranjangmu
+}
+
+function payFromSaved() {
+  document.getElementById('orderSavedModal').style.display = 'none';
+  document.getElementById('payModalTotal').textContent =
+    lastSavedOrder ? lastSavedOrder.total : 'Rp 0';
+  document.getElementById('paymentModal').style.display = 'flex';
+}
+</script>
+@endpush
 @endsection
