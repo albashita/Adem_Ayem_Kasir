@@ -88,6 +88,18 @@
         const PAGE_KEY = @json($pageKey);
     </script>
 
+    <!-- Modul JavaScript Aplikasi -->
+    <script src="{{ asset('js/modules/core.js') }}"></script>
+    <script src="{{ asset('js/modules/qr-code.js') }}"></script>
+    <script src="{{ asset('js/modules/dashboard.js') }}"></script>
+    <script src="{{ asset('js/modules/users.js') }}"></script>
+    <script src="{{ asset('js/modules/menu.js') }}"></script>
+    <script src="{{ asset('js/modules/stok.js') }}"></script>
+    <script src="{{ asset('js/modules/kasir.js') }}"></script>
+    <script src="{{ asset('js/modules/payment.js') }}"></script>
+    <script src="{{ asset('js/modules/riwayat.js') }}"></script>
+    <script src="{{ asset('js/modules/laporan.js') }}"></script>
+    <script src="{{ asset('js/modules/profil.js') }}"></script>
     <script src="{{ asset('js/app.js') }}"></script>
     @stack('scripts')
 
