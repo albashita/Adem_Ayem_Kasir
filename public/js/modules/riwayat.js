@@ -1,6 +1,5 @@
 /**
  * Adem Ayem - Riwayat Transaksi Module
- * Riwayat pesanan, status pembayaran (pending/completed), pelunasan pesanan pending, dan struk.
  */
 
 let histOrders = [];
@@ -28,17 +27,57 @@ function setHistFilter(f) {
   renderHistory();
 }
 
+function resetHistFilter() {
+  ['fSearch', 'fTipe', 'fFrom', 'fTo'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  setHistFilter('semua');
+}
+
+// yyyy-mm-dd menurut waktu lokal (aman dari geseran timezone)
+function histLocalDate(d) {
+  const x = new Date(d);
+  const m = String(x.getMonth() + 1).padStart(2, '0');
+  const day = String(x.getDate()).padStart(2, '0');
+  return x.getFullYear() + '-' + m + '-' + day;
+}
+
+function getFilteredHistory() {
+  const q    = (document.getElementById('fSearch')?.value || '').trim().toLowerCase();
+  const tipe = document.getElementById('fTipe')?.value || '';
+  const from = document.getElementById('fFrom')?.value || '';
+  const to   = document.getElementById('fTo')?.value || '';
+
+  return histOrders.filter(o => {
+    if (histFilter === 'belum' && o.status !== 'pending') return false;
+    if (histFilter === 'sudah' && o.status !== 'completed') return false;
+
+    if (tipe && o.service_type !== tipe) return false;
+
+    if (q) {
+      const hay = ((o.no || '') + ' ' + (o.customer || '')).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+
+    if (from || to) {
+      const d = histLocalDate(o.date);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+    }
+    return true;
+  });
+}
+
 function renderHistory() {
   document.querySelectorAll('#histTabs .cat-tab').forEach(b =>
     b.classList.toggle('active', b.dataset.f === histFilter)
   );
 
-  const list = histOrders.filter(o =>
-    histFilter === 'semua' || (histFilter === 'belum' ? o.status === 'pending' : o.status === 'completed')
-  );
-
   const histBody = document.getElementById('histBody');
   if (!histBody) return;
+
+  const list = getFilteredHistory();
 
   histBody.innerHTML = list.length ? list.map(o => {
     const take = o.service_type === 'takeaway';
@@ -63,7 +102,7 @@ function renderHistory() {
       <td><span class="badge ${st[0]}">${st[1]}</span></td>
       <td class="row-actions">${act}</td>
     </tr>`;
-  }).join('') : '<tr><td colspan="7" class="empty">Belum ada pesanan</td></tr>';
+  }).join('') : `<tr><td colspan="7" class="empty">${histOrders.length ? 'Tidak ada pesanan yang cocok' : 'Belum ada pesanan'}</td></tr>`;
 }
 
 function histToTrx(o) {
@@ -77,8 +116,8 @@ function histToTrx(o) {
     tax: o.tax,
     total: o.total,
     payment: PAY_FROM_ENUM[o.payment_method] || null,
-    received: o.total,
-    change: 0,
+    received: o.received ?? o.total,
+    change: o.change ?? 0,
     kasir: currentUser() ? currentUser().name : '-',
     customer: o.customer,
     orderType: o.service_type
@@ -158,3 +197,5 @@ async function confirmPayOrder() {
     if (btn) btn.disabled = false;
   }
 }
+
+document.addEventListener('DOMContentLoaded', loadHistory);

@@ -8,11 +8,25 @@
      data-list-url="{{ route('riwayat.data') }}"
      data-pay-url="{{ url('/riwayat') }}">
   <h3>Riwayat Transaksi</h3>
+
   <div class="cat-tabs" id="histTabs">
     <button class="cat-tab active" data-f="semua" onclick="setHistFilter('semua')">Semua</button>
     <button class="cat-tab" data-f="belum" onclick="setHistFilter('belum')">Belum Bayar</button>
     <button class="cat-tab" data-f="sudah" onclick="setHistFilter('sudah')">Sudah Bayar</button>
   </div>
+
+  <div class="form-row" style="margin:12px 0;gap:8px;flex-wrap:wrap;align-items:center;">
+    <input id="fSearch" type="text" placeholder="Cari invoice / pelanggan..." style="flex:2;min-width:180px;" oninput="renderHistory()">
+    <select id="fTipe" onchange="renderHistory()" style="flex:1;min-width:140px;">
+      <option value="">Semua Tipe</option>
+      <option value="dinein">Makan di Tempat</option>
+      <option value="takeaway">Bawa Pulang</option>
+    </select>
+    <input id="fFrom" type="date" onchange="renderHistory()" style="flex:1;min-width:130px;" title="Dari tanggal">
+    <input id="fTo" type="date" onchange="renderHistory()" style="flex:1;min-width:130px;" title="Sampai tanggal">
+    <button class="btn btn-outline" onclick="resetHistFilter()">Reset</button>
+  </div>
+
   <div style="overflow-x:auto;">
     <table>
       <thead>
