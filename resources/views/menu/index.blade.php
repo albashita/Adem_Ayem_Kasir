@@ -61,7 +61,6 @@
 
           <div class="menu-modal-header">
               <h3 id="menuModalTitle">Tambah Menu</h3>
-              <button type="button" class="btn" onclick="closeMenuModal()">✕</button>
           </div>
 
         <form id="menuForm" class="menu-form-grid" onsubmit="saveMenu(event)">
