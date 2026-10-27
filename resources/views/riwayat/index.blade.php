@@ -1,13 +1,13 @@
 @extends('layouts.app')
 
-@section('title', 'Riwayat Transaksi - Adem Ayem')
-@section('page-title', 'Riwayat Transaksi')
+@section('title', 'Transaksi Pembayaran - Adem Ayem')
+@section('page-title', 'Transaksi Pembayaran')
 
 @section('content')
 <div class="panel" id="riwayatPage"
      data-list-url="{{ route('riwayat.data') }}"
      data-pay-url="{{ url('/riwayat') }}">
-  <h3>Riwayat Transaksi</h3>
+  <h3>Transaksi Pembayaran</h3>
 
   <div class="cat-tabs" id="histTabs">
     <button class="cat-tab active" data-f="semua" onclick="setHistFilter('semua')">Semua</button>

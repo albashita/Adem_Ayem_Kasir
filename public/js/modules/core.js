@@ -18,7 +18,7 @@ const NAV = [
   { key: 'menu', label: 'Kelola Menu', roles: ['superadmin'] },
   { key: 'stok', label: 'Stok Barang', roles: ['administrator'] },
   { key: 'kasir', label: 'Kasir', roles: ['kasir'] },
-  { key: 'riwayat', label: 'Riwayat Transaksi', roles: ['kasir'] },
+  { key: 'riwayat', label: 'Transaksi Pembayaran', roles: ['kasir'] },
   { key: 'laporan', label: 'Laporan', roles: ['superadmin', 'administrator', 'kasir'] },
   { key: 'profil', label: 'Profil Saya', roles: ['superadmin', 'administrator', 'kasir'] }
 ];

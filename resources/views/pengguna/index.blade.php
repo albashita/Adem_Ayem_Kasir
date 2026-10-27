@@ -79,7 +79,7 @@
         <div class="field"><label>Username</label>
           <input name="username" id="fUser" value="{{ old('username') }}" placeholder="username" required></div>
         <div class="field"><label>Password</label>
-          <input name="password" id="fPass" type="text" placeholder="min. 6 karakter" required></div>
+          <input name="password" id="fPass" type="password" placeholder="min. 6 karakter" required autocomplete="new-password"></div>
         <div class="field"><label>Role</label>
           <select name="role" id="fRole">
             <option value="owner" {{ old('role', 'owner') === 'owner' ? 'selected' : '' }}>Owner</option>
