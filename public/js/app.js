@@ -1,21 +1,3 @@
-/**
- * Adem Ayem - Application Entry Point & Orchestrator
- * Menghubungkan seluruh modul aplikasi dan menginisialisasi siklus hidup halaman.
- *
- * Modul yang tersedia di /js/modules/:
- * - core.js       : Konfigurasi LocalStorage, utilitas rupiah, autentikasi, dan bootstrap
- * - qr-code.js    : Library generator QR Code SVG dan modal QR Menu
- * - dashboard.js  : Ringkasan statistik dan monitoring stok menipis
- * - users.js      : Manajemen pengguna & hak akses role (client fallback)
- * - menu.js       : Kelola katalog menu, foto/emoji, dan integrasi API
- * - stok.js       : Inventaris bahan, barang masuk/keluar, dan log mutasi
- * - kasir.js      : Antarmuka kasir/POS, keranjang, PB1 10%, dan simpan order
- * - payment.js    : Modal pembayaran tunai/qris/transfer, kembalian, dan cetak struk
- * - riwayat.js    : Riwayat transaksi pesanan dan pelunasan status pending
- * - laporan.js    : Laporan keuangan, analitik grafik, dan laporan stok
- * - profil.js     : Pengaturan profil saya dan ganti password
- */
-
 (function () {
   const MODULES = [
     'core.js',

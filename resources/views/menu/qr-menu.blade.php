@@ -1,17 +1,18 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Daftar Menu - Adem Ayem</title>
+    <title>Daftar Menu - Depot Yu Sri Adem Ayem</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Kaushan+Script&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ asset('css/qr-menu.css') }}">
 </head>
 <body>
     <header class="menu-header">
-        <p class="brand">ADEM AYEM</p>
+        <p class="depot">Depot Yu Sri</p>
+        <p class="brand">Adem Ayem</p>
         <h1>Daftar Menu</h1>
-        <p class="subtitle">Hidangan pilihan untuk menemani harimu.</p>
     </header>
 
     <main class="menu-container">
@@ -22,40 +23,7 @@
                 placeholder="Cari nama menu..."
                 aria-label="Cari menu"
             >
-
-            <div class="category-dropdown" id="categoryDropdown">
-                <button
-                    type="button"
-                    class="category-trigger"
-                    id="categoryTrigger"
-                    aria-expanded="false"
-                    aria-haspopup="true"
-                    aria-controls="categoryOptions"
-                >
-                    <span id="categoryLabel">Semua kategori</span>
-                    <span class="category-arrow" aria-hidden="true">⌄</span>
-                </button>
-
-                <div
-                    class="category-options"
-                    id="categoryOptions"
-                    role="group"
-                    aria-label="Pilih kategori"
-                    hidden
-                >
-                    <button
-                        type="button"
-                        class="category-option active"
-                        data-value=""
-                    >
-                        Semua kategori
-                    </button>
-                </div>
-            </div>
-
-            <select id="categoryFilter" aria-label="Pilih kategori" hidden>
-                <option value="">Semua kategori</option>
-            </select>
+            <div class="category-chips" id="categoryChips" role="group" aria-label="Pilih kategori"></div>
         </div>
 
         <p id="menuStatus" class="menu-status">Memuat menu...</p>
@@ -63,21 +31,17 @@
     </main>
 
     <footer class="menu-footer">
-        Terima kasih telah berkunjung ke Adem Ayem.
+        Terima kasih telah berkunjung ke Depot Yu Sri Adem Ayem.
     </footer>
 
     <script>
         const menuList = document.getElementById('menuList');
         const menuStatus = document.getElementById('menuStatus');
         const menuSearch = document.getElementById('menuSearch');
-        const categoryFilter = document.getElementById('categoryFilter');
-
-        const categoryDropdown = document.getElementById('categoryDropdown');
-        const categoryTrigger = document.getElementById('categoryTrigger');
-        const categoryLabel = document.getElementById('categoryLabel');
-        const categoryOptions = document.getElementById('categoryOptions');
+        const categoryChips = document.getElementById('categoryChips');
 
         let menus = [];
+        let selectedCategory = '';
 
         function escapeHTML(value) {
             return String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -89,62 +53,22 @@
             })[char]);
         }
 
-        function setDropdownOpen(open) {
-            categoryOptions.hidden = !open;
-            categoryDropdown.classList.toggle('open', open);
-            categoryTrigger.setAttribute('aria-expanded', String(open));
-        }
+        function renderChips(categories) {
+            const items = [{ value: '', label: 'Semua' },
+                ...categories.map(name => ({ value: name, label: name }))];
 
-        function selectCategory(value, label) {
-            categoryFilter.value = value;
-            categoryLabel.textContent = label;
-
-            categoryOptions.querySelectorAll('.category-option')
-                .forEach(button => {
-                    const active = button.dataset.value === value;
-                    button.classList.toggle('active', active);
-
-                    if (active) {
-                        button.setAttribute('aria-pressed', 'true');
-                    } else {
-                        button.setAttribute('aria-pressed', 'false');
-                    }
-                });
-
-            setDropdownOpen(false);
-            renderMenus();
-        }
-
-        function renderCategoryOptions(categories) {
-            categoryOptions.innerHTML = '';
-
-            const allCategories = [
-                { value: '', label: 'Semua kategori' },
-                ...categories.map(name => ({ value: name, label: name }))
-            ];
-
-            allCategories.forEach(category => {
-                const button = document.createElement('button');
-
-                button.type = 'button';
-                button.className = 'category-option';
-                button.dataset.value = category.value;
-                button.textContent = category.label;
-                button.setAttribute('aria-pressed', 'false');
-
-                button.addEventListener('click', () => {
-                    selectCategory(category.value, category.label);
-                });
-
-                categoryOptions.appendChild(button);
-            });
-
-            selectCategory('', 'Semua kategori');
+            categoryChips.innerHTML = items.map(item => `
+                <button type="button"
+                        class="chip ${item.value === selectedCategory ? 'active' : ''}"
+                        data-value="${escapeHTML(item.value)}"
+                        aria-pressed="${item.value === selectedCategory}">
+                    ${escapeHTML(item.label)}
+                </button>
+            `).join('');
         }
 
         function renderMenus() {
             const keyword = menuSearch.value.trim().toLowerCase();
-            const selectedCategory = categoryFilter.value;
 
             const filtered = menus.filter(menu => {
                 const name = String(menu.name || '').toLowerCase();
@@ -183,13 +107,8 @@
                     <article class="menu-card">
                         <div class="menu-photo">${photo}</div>
                         <div class="menu-info">
-                            <span class="menu-category">
-                                ${escapeHTML(menu.category?.name || 'Menu')}
-                            </span>
                             <h2>${escapeHTML(menu.name)}</h2>
-                            <p>${escapeHTML(
-                                menu.description || 'Menu pilihan Adem Ayem.'
-                            )}</p>
+                            <p>${escapeHTML(menu.description || 'Menu pilihan Adem Ayem.')}</p>
                             <strong>${price}</strong>
                         </div>
                     </article>
@@ -210,46 +129,34 @@
                 menus = await response.json();
 
                 const categories = [
-                    ...new Set(
-                        menus.map(menu => menu.category?.name).filter(Boolean)
-                    )
+                    ...new Set(menus.map(menu => menu.category?.name).filter(Boolean))
                 ];
 
-                categoryFilter.innerHTML =
-                    '<option value="">Semua kategori</option>' +
-                    categories.map(name =>
-                        `<option value="${escapeHTML(name)}">${escapeHTML(name)}</option>`
-                    ).join('');
-
-                renderCategoryOptions(categories);
+                renderChips(categories);
                 renderMenus();
             } catch (error) {
                 menuStatus.hidden = false;
-                menuStatus.textContent =
-                    'Menu gagal dimuat. Silakan muat ulang halaman.';
+                menuStatus.textContent = 'Menu gagal dimuat. Silakan muat ulang halaman.';
                 console.error(error);
             }
         }
 
-        categoryTrigger.addEventListener('click', () => {
-            setDropdownOpen(categoryOptions.hidden);
-        });
+        categoryChips.addEventListener('click', event => {
+            const chip = event.target.closest('.chip');
+            if (!chip) return;
 
-        document.addEventListener('click', event => {
-            if (!categoryDropdown.contains(event.target)) {
-                setDropdownOpen(false);
-            }
-        });
+            selectedCategory = chip.dataset.value;
 
-        document.addEventListener('keydown', event => {
-            if (event.key === 'Escape') {
-                setDropdownOpen(false);
-                categoryTrigger.focus();
-            }
+            categoryChips.querySelectorAll('.chip').forEach(button => {
+                const active = button.dataset.value === selectedCategory;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', String(active));
+            });
+
+            renderMenus();
         });
 
         menuSearch.addEventListener('input', renderMenus);
-        categoryFilter.addEventListener('change', renderMenus);
 
         loadMenus();
     </script>

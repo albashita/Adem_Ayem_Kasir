@@ -1,0 +1,104 @@
+/* Adem Ayem - Sidebar (hijau tua, ikon, menu aktif berupa pil putih)
+   Dimuat SETELAH app.css supaya menimpa gaya sidebar yang lama. */
+
+/* Lebar sidebar sengaja tidak diubah di sini: ikut aturan app.css supaya halaman utama tidak tertutup. */
+
+.shell .sidebar {
+  background: #1F5C3A;
+  color: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 28px 16px 20px;
+  box-sizing: border-box;
+}
+
+.shell .sidebar .brand-top {
+  padding: 0 10px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: #F2D98A;
+  text-align: center;
+}
+
+.shell .sidebar .brand {
+  padding: 0 10px;
+  margin: 2px 0 26px;
+  font-family: 'Kaushan Script', cursive;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 1.1;
+  color: #FFFFFF;
+  display: block;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* Hilangkan ikon/hiasan logo lama dari app.css */
+.shell .sidebar .brand::before,
+.shell .sidebar .brand::after {
+  content: none;
+  display: none;
+}
+
+.shell .sidebar .brand span {
+  display: inline;
+  color: inherit;
+}
+
+/* Label role di sidebar disembunyikan (role sudah tampil di kanan atas: "Masuk sebagai ...").
+   Elemennya tetap ada supaya script lain yang memakai #roleChip tidak error. */
+.shell .sidebar .rolechip {
+  display: none;
+}
+
+.shell .sidebar .navbtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 11px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  box-shadow: none;
+  color: #E0F0E6;
+  font: 500 14px 'Plus Jakarta Sans', system-ui, sans-serif;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+
+.shell .sidebar .navbtn::before,
+.shell .sidebar .navbtn::after {
+  content: none;
+}
+
+.shell .sidebar .navbtn .navico {
+  flex: 0 0 20px;
+}
+
+.shell .sidebar .navbtn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #FFFFFF;
+}
+
+.shell .sidebar .navbtn.active,
+.shell .sidebar .navbtn.active:hover {
+  background: #FFFFFF;
+  color: #1F5C3A;
+  font-weight: 700;
+}
+
+.shell .sidebar .navbtn:focus-visible {
+  outline: 2px solid #F2D98A;
+  outline-offset: 2px;
+}
+
+.shell .sidebar .navbtn.logout {
+  margin-top: auto;
+}

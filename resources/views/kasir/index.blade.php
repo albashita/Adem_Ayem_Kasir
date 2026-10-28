@@ -7,7 +7,7 @@
 <div class="pos-layout" id="kasirPage"
      data-menu-url="{{ route('kasir.menu-data') }}"
      data-order-url="{{ route('kasir.orders.store') }}"
-     data-qr-url="http://10.70.1.107:8000/qr-menu">
+     data-qr-url="http://192.168.1.7:8000/qr-menu">
     <div class="pos-products panel">
         <h3>Pesanan Pelanggan — Pilih Menu</h3>
         <div class="pos-toolbar">
