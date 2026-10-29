@@ -6,6 +6,7 @@
 @section('content')
 <div class="pos-layout" id="kasirPage"
      data-menu-url="{{ route('kasir.menu-data') }}"
+     data-stock-url="{{ route('kasir.stock-estimates') }}"
      data-order-url="{{ route('kasir.orders.store') }}"
      data-qr-url="http://192.168.1.7:8000/qr-menu">
     <div class="pos-products panel">
@@ -152,7 +153,7 @@
             </div>
         </div>
         <div class="form-row" style="margin-top:16px;">
-            <button class="btn btn-primary" style="flex:1;" onclick="payFromSaved()">Simpan</button>
+            <button class="btn btn-primary" style="flex:1;" onclick="payFromSaved()">Lanjut ke Pembayaran</button>
         </div>
     </div>
 </div>

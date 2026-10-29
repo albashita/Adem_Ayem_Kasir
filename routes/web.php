@@ -1,14 +1,14 @@
 <?php
 
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\UserController;
 use App\Http\Controllers\MenuController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrMenuController;
 use App\Http\Controllers\StockItemController;
+use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\OrderController;
 
 /*
 |--------------------------------------------------------------------------
@@ -100,7 +100,7 @@ Route::middleware('auth')->group(function () use ($role) {
     Route::group(['middleware' => [$role('owner', 'admin')]], function () {
         Route::get('/dashboard', function () {
             return view('dashboard.index', [
-                'pageKey' => 'dashboard'
+                'pageKey' => 'dashboard',
             ]);
         })->name('dashboard');
     });
@@ -150,47 +150,50 @@ Route::middleware('auth')->group(function () use ($role) {
 
     // Admin — Stok Barang
     Route::group(['middleware' => [$role('admin')]], function () {
-        Route::get('/stok',                                   [StockItemController::class, 'index'])     ->name('stok.index');
-        Route::get('/stok/data',                              [StockItemController::class, 'data'])      ->name('stok.data');
-        Route::get('/stok/movements',                         [StockItemController::class, 'movements']) ->name('stok.movements');
-        Route::post('/stok',                                  [StockItemController::class, 'store'])     ->name('stok.store');
-        Route::put('/stok/{stockItem}',                       [StockItemController::class, 'update'])    ->name('stok.update');
-        Route::post('/stok/{stockItem}/deactivate',           [StockItemController::class, 'destroy'])   ->name('stok.deactivate');
-        Route::post('/stok/{stockItem}/stock-in',             [StockItemController::class, 'stockIn'])   ->name('stok.stock-in');
-        Route::post('/stok/{stockItem}/stock-out',            [StockItemController::class, 'stockOut'])  ->name('stok.stock-out');
+        Route::get('/stok', [StockItemController::class, 'index'])->name('stok.index');
+        Route::get('/stok/data', [StockItemController::class, 'data'])->name('stok.data');
+        Route::get('/stok/movements', [StockItemController::class, 'movements'])->name('stok.movements');
+        Route::post('/stok', [StockItemController::class, 'store'])->name('stok.store');
+        Route::put('/stok/{stockItem}', [StockItemController::class, 'update'])->name('stok.update');
+        Route::post('/stok/{stockItem}/deactivate', [StockItemController::class, 'destroy'])->name('stok.deactivate');
+        Route::post('/stok/{stockItem}/stock-in', [StockItemController::class, 'stockIn'])->name('stok.stock-in');
+        Route::post('/stok/{stockItem}/stock-out', [StockItemController::class, 'stockOut'])->name('stok.stock-out');
     });
 
-            // Kasir saja
+    // Kasir saja
     Route::group(['middleware' => [$role('kasir')]], function () {
         Route::get('/kasir', function () {
             return view('kasir.index', [
-                'pageKey' => 'kasir'
+                'pageKey' => 'kasir',
             ]);
         })->name('kasir.index');
 
         Route::get('/kasir/menu-data', [MenuController::class, 'kasirData'])
             ->name('kasir.menu-data');
 
+        Route::get('/kasir/stock-estimates', [MenuController::class, 'stockEstimates'])
+            ->name('kasir.stock-estimates');
+
         Route::post('/kasir/orders', [OrderController::class, 'store'])
             ->name('kasir.orders.store');
     });
     Route::get('/riwayat', fn () => view('riwayat.index', ['pageKey' => 'riwayat']))
-    ->name('riwayat.index');
-Route::get('/riwayat/data', [OrderController::class, 'history'])
-    ->name('riwayat.data');
-Route::post('/riwayat/{id}/pay', [OrderController::class, 'pay'])
-    ->name('riwayat.pay');
+        ->name('riwayat.index');
+    Route::get('/riwayat/data', [OrderController::class, 'history'])
+        ->name('riwayat.data');
+    Route::post('/riwayat/{id}/pay', [OrderController::class, 'pay'])
+        ->name('riwayat.pay');
 
     // Semua role yang sudah login
     Route::get('/laporan', function () {
         return view('laporan.index', [
-            'pageKey' => 'laporan'
+            'pageKey' => 'laporan',
         ]);
     })->name('laporan.index');
 
     Route::get('/profile', function () {
         return view('profile.index', [
-            'pageKey' => 'profil'
+            'pageKey' => 'profil',
         ]);
     })->name('profile.index');
 
@@ -210,7 +213,6 @@ Route::fallback(function (Request $request) {
 
     return redirect()->route('home');
 });
-
 
 Route::get('/qr-menu', [QrMenuController::class, 'index'])
     ->name('qr-menu');

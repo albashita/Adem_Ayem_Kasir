@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Menu;
 use App\Models\Category;
-use App\Models\StockItem;
+use App\Models\Menu;
 use App\Models\MenuIngredient;
+use App\Models\StockItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -31,7 +31,7 @@ class MenuController extends Controller
 
     public function store(Request $request)
     {
-        if (!$request->has('kode_menu') && $request->has('code')) {
+        if (! $request->has('kode_menu') && $request->has('code')) {
             $request->merge(['kode_menu' => $request->input('code')]);
         }
 
@@ -40,8 +40,7 @@ class MenuController extends Controller
             'name' => 'required|string|max:20',
             'description' => 'nullable|string|max:200',
             'price' => 'required|integer|min:1',
-            'categories_id_categorie' =>
-                'required|integer|exists:categories,id_categorie',
+            'categories_id_categorie' => 'required|integer|exists:categories,id_categorie',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ], [
             'kode_menu.required' => 'Kode menu wajib diisi.',
@@ -71,17 +70,16 @@ class MenuController extends Controller
 
     public function update(Request $request, Menu $menu)
     {
-        if (!$request->has('kode_menu') && $request->has('code')) {
+        if (! $request->has('kode_menu') && $request->has('code')) {
             $request->merge(['kode_menu' => $request->input('code')]);
         }
 
         $validated = $request->validate([
-            'kode_menu' => 'sometimes|required|string|max:30|unique:menus,kode_menu,' . $menu->id_menu . ',id_menu',
+            'kode_menu' => 'sometimes|required|string|max:30|unique:menus,kode_menu,'.$menu->id_menu.',id_menu',
             'name' => 'required|string|max:20',
             'description' => 'nullable|string|max:200',
             'price' => 'required|integer|min:1',
-            'categories_id_categorie' =>
-                'required|integer|exists:categories,id_categorie',
+            'categories_id_categorie' => 'required|integer|exists:categories,id_categorie',
             'image' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
         ], [
             'kode_menu.required' => 'Kode menu wajib diisi.',
@@ -144,28 +142,101 @@ class MenuController extends Controller
         return response()->json($menus);
     }
 
-    // Data menu untuk halaman Kasir (hanya menu aktif)
+    // Data menu untuk halaman Kasir (hanya menu aktif) beserta estimasi porsi
     public function kasirData()
     {
-        $menus = Menu::with('category')
+        $menus = Menu::with(['category', 'ingredients.stockItem'])
             ->where('is_active', 1)
             ->orderBy('name')
             ->get()
-            ->map(fn ($menu) => [
-                'id'          => $menu->id_menu,
-                'code'        => $menu->code,
-                'kode_menu'   => $menu->kode_menu,
-                'name'        => $menu->name,
-                'price'       => $menu->price,
-                'category_id' => $menu->categories_id_categorie,
-                'category'    => $menu->category?->name,
-                'image_url'   => (
-                    $menu->image &&
-                    Storage::disk('public')->exists($menu->image)
-                )
-                    ? Storage::disk('public')->url($menu->image)
-                    : null,
-            ]);
+            ->map(function ($menu) {
+                $hasRecipe = $menu->ingredients->isNotEmpty();
+                $stockEstimate = null;
+
+                if ($hasRecipe) {
+                    $minPortions = PHP_INT_MAX;
+                    foreach ($menu->ingredients as $ingredient) {
+                        $stockItem = $ingredient->stockItem;
+                        if (! $stockItem || ! $stockItem->is_active) {
+                            $minPortions = 0;
+                            break;
+                        }
+
+                        $qtyRequired = (float) $ingredient->quantity_required;
+                        if ($qtyRequired <= 0) {
+                            continue; // Hindari pembagian nol
+                        }
+
+                        $currentStock = (float) $stockItem->current_stock;
+                        $portions = (int) floor(max(0, $currentStock) / $qtyRequired);
+                        $minPortions = min($minPortions, $portions);
+                    }
+
+                    $stockEstimate = ($minPortions === PHP_INT_MAX) ? null : $minPortions;
+                }
+
+                return [
+                    'id' => $menu->id_menu,
+                    'code' => $menu->code,
+                    'kode_menu' => $menu->kode_menu,
+                    'name' => $menu->name,
+                    'price' => $menu->price,
+                    'category_id' => $menu->categories_id_categorie,
+                    'category' => $menu->category?->name,
+                    'has_recipe' => $hasRecipe,
+                    'stock_estimate' => $stockEstimate,
+                    'image_url' => (
+                        $menu->image &&
+                        Storage::disk('public')->exists($menu->image)
+                    )
+                        ? Storage::disk('public')->url($menu->image)
+                        : null,
+                ];
+            });
+
+        return response()->json($menus);
+    }
+
+    /**
+     * Endpoint ringan untuk memperbarui estimasi porsi seluruh menu aktif
+     */
+    public function stockEstimates()
+    {
+        $menus = Menu::with(['ingredients.stockItem'])
+            ->where('is_active', 1)
+            ->get()
+            ->map(function ($menu) {
+                $hasRecipe = $menu->ingredients->isNotEmpty();
+                $stockEstimate = null;
+
+                if ($hasRecipe) {
+                    $minPortions = PHP_INT_MAX;
+                    foreach ($menu->ingredients as $ingredient) {
+                        $stockItem = $ingredient->stockItem;
+                        if (! $stockItem || ! $stockItem->is_active) {
+                            $minPortions = 0;
+                            break;
+                        }
+
+                        $qtyRequired = (float) $ingredient->quantity_required;
+                        if ($qtyRequired <= 0) {
+                            continue;
+                        }
+
+                        $currentStock = (float) $stockItem->current_stock;
+                        $portions = (int) floor(max(0, $currentStock) / $qtyRequired);
+                        $minPortions = min($minPortions, $portions);
+                    }
+
+                    $stockEstimate = ($minPortions === PHP_INT_MAX) ? null : $minPortions;
+                }
+
+                return [
+                    'id' => $menu->id_menu,
+                    'has_recipe' => $hasRecipe,
+                    'stock_estimate' => $stockEstimate,
+                ];
+            });
 
         return response()->json($menus);
     }

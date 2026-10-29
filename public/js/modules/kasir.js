@@ -1,6 +1,7 @@
 /**
  * Adem Ayem - Kasir & POS Module
- * Katalog menu POS, keranjang belanja, perhitungan diskon & pajak PB1 10%, serta penyimpanan pesanan.
+ * Katalog menu POS, keranjang belanja, pembatasan stok berbasis resep bahan baku,
+ * perhitungan diskon & pajak PB1 10%, serta penyimpanan pesanan.
  */
 
 let cart = [];
@@ -38,17 +39,21 @@ async function loadPosMenu() {
   const page = document.getElementById('kasirPage');
   if (!page) return;
 
-  if (grid) grid.innerHTML = '<div class="empty">Memuat menu...</div>';
+  if (grid) grid.innerHTML = '<div class="empty">Memuat katalog menu & stok...</div>';
   try {
     const res = await fetch(page.dataset.menuUrl, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) throw new Error('Gagal memuat menu.');
+    if (!res.ok) throw new Error('Gagal memuat katalog menu.');
     const data = await res.json();
     posMenu = data.map(m => ({
       id: String(m.id),
       code: m.code,
+      kode_menu: m.kode_menu || m.code,
       name: m.name,
       price: Number(m.price),
-      category: m.category || 'Lainnya'
+      category: m.category || 'Lainnya',
+      has_recipe: Boolean(m.has_recipe),
+      stock_estimate: m.stock_estimate !== null && m.stock_estimate !== undefined ? Number(m.stock_estimate) : null,
+      image_url: m.image_url || null,
     }));
   } catch (e) {
     posMenu = [];
@@ -56,6 +61,40 @@ async function loadPosMenu() {
     return;
   }
   renderPOS();
+}
+
+/**
+ * Endpoint polling / refresh estimasi stok terbaru tanpa me-reload seluruh katalog
+ */
+async function refreshStockEstimates() {
+  const page = document.getElementById('kasirPage');
+  if (!page || !page.dataset.stockUrl) return;
+
+  try {
+    const res = await fetch(page.dataset.stockUrl, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) return;
+    const estimates = await res.json();
+
+    const estimateMap = new Map();
+    estimates.forEach(item => {
+      estimateMap.set(String(item.id), {
+        has_recipe: Boolean(item.has_recipe),
+        stock_estimate: item.stock_estimate !== null && item.stock_estimate !== undefined ? Number(item.stock_estimate) : null,
+      });
+    });
+
+    posMenu.forEach(menu => {
+      if (estimateMap.has(menu.id)) {
+        const est = estimateMap.get(menu.id);
+        menu.has_recipe = est.has_recipe;
+        menu.stock_estimate = est.stock_estimate;
+      }
+    });
+
+    renderPOS();
+  } catch (err) {
+    console.warn('Gagal memperbarui estimasi stok:', err);
+  }
 }
 
 function renderPOS() {
@@ -80,13 +119,34 @@ function renderPOS() {
   const grid = document.getElementById('posProductGrid');
   if (grid) {
     grid.innerHTML = filtered.length
-      ? filtered.map(p => `
-          <div class="prod-card" onclick="addToCart('${p.id}')">
-            <div class="code">${escapeMenuHTML(p.code)}</div>
-            <div class="name">${escapeMenuHTML(p.name)}</div>
-            <div class="price">${rupiah(p.price)}</div>
-          </div>
-        `).join('')
+      ? filtered.map(p => {
+          const isOutOfStock = p.has_recipe && p.stock_estimate === 0;
+          let stockHtml = '';
+
+          if (!p.has_recipe) {
+            stockHtml = `<span class="stock-badge stock-norecipe">Tanpa resep</span>`;
+          } else if (p.stock_estimate === 0) {
+            stockHtml = `<span class="stock-badge stock-out">Stok Habis</span>`;
+          } else if (p.stock_estimate <= 3) {
+            stockHtml = `<span class="stock-badge stock-low">Tersedia: ${p.stock_estimate} porsi</span>`;
+          } else {
+            stockHtml = `<span class="stock-badge stock-ok">Tersedia: ${p.stock_estimate} porsi</span>`;
+          }
+
+          const cardClass = `prod-card ${isOutOfStock ? 'out-of-stock' : ''}`;
+          const clickHandler = isOutOfStock
+            ? `onclick="triggerAlertModal('Menu ${escapeMenuHTML(p.name)} sedang habis karena stok bahan baku tidak mencukupi.', 'Stok Habis')"`
+            : `onclick="addToCart('${p.id}')"`;
+
+          return `
+            <div class="${cardClass}" ${clickHandler} title="${isOutOfStock ? 'Stok bahan baku habis' : 'Klik untuk tambah ke pesanan'}">
+              <div class="code">${escapeMenuHTML(p.code)}</div>
+              <div class="name">${escapeMenuHTML(p.name)}</div>
+              <div class="price">${rupiah(p.price)}</div>
+              <div class="stock">${stockHtml}</div>
+            </div>
+          `;
+        }).join('')
       : `<div class="empty">Menu tidak ditemukan</div>`;
   }
 
@@ -112,17 +172,47 @@ function selectOrderType(t) {
 function addToCart(id) {
   const p = posMenu.find(x => x.id === id);
   if (!p) return;
+
+  // Jika menu memiliki resep dan stok habis, cegah penambahan
+  if (p.has_recipe && p.stock_estimate === 0) {
+    triggerAlertModal(`Menu "${p.name}" tidak dapat dipilih karena stok bahan baku habis.`, 'Stok Habis');
+    return;
+  }
+
   const existing = cart.find(c => c.id === id);
-  if (existing) existing.qty++;
-  else cart.push({ id: p.id, name: p.name, price: p.price, qty: 1 });
+  const currentQty = existing ? existing.qty : 0;
+
+  // Batasi jumlah pesanan agar tidak melebihi estimasi stok yang tersedia
+  if (p.has_recipe && p.stock_estimate !== null && (currentQty + 1) > p.stock_estimate) {
+    triggerAlertModal(`Stok bahan baku untuk menu "${p.name}" hanya cukup untuk ${p.stock_estimate} porsi. Jumlah pesanan tidak dapat ditambah lagi.`, 'Batas Stok Tercapai');
+    return;
+  }
+
+  if (existing) {
+    existing.qty++;
+  } else {
+    cart.push({ id: p.id, name: p.name, price: p.price, qty: 1 });
+  }
+
   renderCart();
 }
 
 function changeQty(id, delta) {
   const item = cart.find(c => c.id === id);
   if (!item) return;
+
+  if (delta > 0) {
+    const p = posMenu.find(x => x.id === id);
+    if (p && p.has_recipe && p.stock_estimate !== null && (item.qty + delta) > p.stock_estimate) {
+      triggerAlertModal(`Stok bahan baku untuk menu "${p.name}" hanya tersedia ${p.stock_estimate} porsi.`, 'Batas Stok Tercapai');
+      return;
+    }
+  }
+
   item.qty += delta;
-  if (item.qty <= 0) cart = cart.filter(c => c.id !== id);
+  if (item.qty <= 0) {
+    cart = cart.filter(c => c.id !== id);
+  }
   renderCart();
 }
 
@@ -158,16 +248,19 @@ function renderCart() {
   body.innerHTML = cart.length
     ? cart.map(c => `
         <div class="cart-item">
-          <div>${escapeMenuHTML(c.name)}<br><span style="color:var(--muted);font-size:12px">${rupiah(c.price)} x ${c.qty}</span></div>
+          <div>
+            ${escapeMenuHTML(c.name)}<br>
+            <span style="color:var(--muted);font-size:12px">${rupiah(c.price)} x ${c.qty} = ${rupiah(c.price * c.qty)}</span>
+          </div>
           <div class="qty-ctrl">
-            <button onclick="changeQty('${c.id}',-1)">−</button>
-            <span style="margin:0 6px">${c.qty}</span>
-            <button onclick="changeQty('${c.id}',1)">+</button>
-            <button onclick="removeFromCart('${c.id}')" style="margin-left:6px;color:var(--danger);border:none;background:none;cursor:pointer">✕</button>
+            <button onclick="changeQty('${c.id}',-1)" title="Kurangi">−</button>
+            <span style="margin:0 6px;min-width:20px;text-align:center;font-weight:600;">${c.qty}</span>
+            <button onclick="changeQty('${c.id}',1)" title="Tambah">+</button>
+            <button onclick="removeFromCart('${c.id}')" style="margin-left:6px;color:var(--danger);border:none;background:none;cursor:pointer" title="Hapus item">✕</button>
           </div>
         </div>
       `).join('')
-    : '<div class="empty">Belum ada item</div>';
+    : '<div class="empty">Belum ada item pesanan</div>';
 
   const t = computeTotals();
   const subEl = document.getElementById('cartSubtotal');
@@ -193,7 +286,10 @@ async function saveOrder() {
   }
 
   const btn = document.getElementById('saveOrderBtn');
-  if (btn) btn.disabled = true;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Menyimpan...';
+  }
 
   try {
     const totals = computeTotals();
@@ -226,7 +322,7 @@ async function saveOrder() {
 
     if (typeof showOrderSaved === 'function') {
       showOrderSaved({
-        invoice: data.invoice_number || '-',
+        invoice: data.invoice_number || data.order_no || '-',
         type: typeNow,
         customer: custName,
         total: rupiah(totals.total)
@@ -238,12 +334,27 @@ async function saveOrder() {
     appliedDiscount = 0;
     const discInput = document.getElementById('discountInput');
     if (discInput) discInput.value = '';
+    const custInput = document.getElementById('custName');
+    if (custInput) custInput.value = '';
     renderCart();
+
+    // Perbarui estimasi stok katalog menu
+    refreshStockEstimates();
 
   } catch (e) {
     console.error(e);
-    triggerAlertModal('Terjadi kesalahan: ' + e.message, 'Gagal');
+    triggerAlertModal('Terjadi kesalahan jaringan: ' + e.message, 'Gagal');
   } finally {
-    if (btn) btn.disabled = false;
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Simpan Pesanan';
+    }
   }
 }
+
+// Inisialisasi otomatis jika berada di halaman kasir
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('kasirPage')) {
+    loadPosMenu();
+  }
+});
