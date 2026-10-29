@@ -1,110 +1,182 @@
 /**
  * Adem Ayem - Stok & Inventory Module
- * Pengelolaan inventaris bahan baku, barang masuk/keluar, log pergerakan stok, dan filter tanggal.
+ * Pengelolaan bahan baku: CRUD, stok masuk/keluar, riwayat pergerakan.
+ * Data diambil dari backend Laravel (bukan localStorage).
  */
 
-let currentStokCategory = 'makanan';
-let editingInvId = null;
-let stockInId = null;
+// ─── State ────────────────────────────────────────────────────────────────────
+let stokData      = [];   // hasil fetch /stok/data
+let movementsData = [];   // hasil fetch /stok/movements
+let editingStokId = null; // id_stock_item yang sedang diedit
+let stockInId     = null; // id_stock_item yang akan ditambah stoknya
 
-function selectStokCat(c) {
-  currentStokCategory = c;
-  renderStok();
+// ─── URL Helpers ──────────────────────────────────────────────────────────────
+function stokPage() {
+  return document.getElementById('stokPage');
 }
 
-function openTambahStokModal() {
-  editingInvId = null;
+function stokUrl(action, id = null) {
+  const p = stokPage();
+  if (!p) throw new Error('Elemen stokPage tidak ditemukan.');
 
-  document.getElementById('stokFormTitle').textContent =
-    'Tambah Barang ' + (CAT_LABEL[currentStokCategory] || currentStokCategory) + ' Baru';
-
-  document.getElementById('iName').value = '';
-  document.getElementById('iUnit').value = '';
-  document.getElementById('iStock').value = '';
-  document.getElementById('iCost').value = '';
-  document.getElementById('iCost').disabled = false;
-  document.getElementById('iSaveBtn').textContent = 'Simpan';
-
-  document.getElementById('stokItemModal').style.display = 'flex';
+  switch (action) {
+    case 'data':       return p.dataset.dataUrl;
+    case 'store':      return p.dataset.storeUrl;
+    case 'movements':  return p.dataset.movementsUrl;
+    case 'update':     return `${p.dataset.updateUrl}/${id}`;
+    case 'deactivate': return `${p.dataset.destroyUrl}/${id}/deactivate`;
+    case 'stock-in':   return `${p.dataset.stockInUrl}/${id}/stock-in`;
+    case 'stock-out':  return `${p.dataset.stockOutUrl}/${id}/stock-out`;
+    default:           throw new Error(`stokUrl: action tidak dikenal "${action}"`);
+  }
 }
 
-function closeStokItemModal() {
-  document.getElementById('stokItemModal').style.display = 'none';
+function stokHeaders() {
+  return {
+    'Accept':       'application/json',
+    'Content-Type': 'application/json',
+    'X-CSRF-TOKEN': CSRF_TOKEN,
+  };
 }
 
-function addStockLog(itemId, type, qty, note, cost) {
-  const log = getLog();
-  log.push({
-    id: 'l' + Date.now() + Math.floor(Math.random() * 1000),
-    date: new Date().toISOString(),
-    itemId,
-    type,
-    qty,
-    cost: Number(cost) || 0,
-    note: note || ''
-  });
-  setLog(log);
+// ─── Fetch ────────────────────────────────────────────────────────────────────
+async function fetchStokData() {
+  const res = await fetch(stokUrl('data'), { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error('Gagal memuat data stok.');
+  stokData = await res.json();
 }
 
-function saveInventoryItem() {
-  const name = document.getElementById('iName').value.trim();
-  const unit = document.getElementById('iUnit').value.trim();
-  const stock = Number(document.getElementById('iStock').value) || 0;
-  const cost = Number(document.getElementById('iCost').value) || 0;
+async function fetchMovements() {
+  const { from, to } = getStokFilterRange();
+  const url = new URL(stokUrl('movements'), window.location.origin);
+  if (from) url.searchParams.set('from', from);
+  if (to)   url.searchParams.set('to', to);
 
-  if (!name || !unit) {
-    alert('Nama barang dan satuan wajib diisi.');
+  const res = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error('Gagal memuat riwayat stok.');
+  movementsData = await res.json();
+}
+
+// ─── Entri Utama ──────────────────────────────────────────────────────────────
+async function renderStok() {
+  try {
+    await Promise.all([fetchStokData(), fetchMovements()]);
+  } catch (err) {
+    showStokMessage(err.message, true);
     return;
   }
-  if (stock < 0 || cost < 0) {
-    alert('Stok dan harga tidak boleh minus.');
+  renderStokTable();
+  renderMovementsTable();
+}
+
+/**
+ * Reload lengkap: fetch ulang kedua dataset lalu render.
+ * Dipanggil setelah CUD berhasil, atau saat filter tanggal berubah.
+ */
+async function loadAndRenderStok() {
+  try {
+    await Promise.all([fetchStokData(), fetchMovements()]);
+  } catch (err) {
+    showStokMessage(err.message, true);
+    return;
+  }
+  renderStokTable();
+  renderMovementsTable();
+}
+
+// ─── Render Tabel Stok ────────────────────────────────────────────────────────
+function renderStokTable() {
+  const body = document.getElementById('stokStatusBody');
+  if (!body) return;
+
+  if (!stokData.length) {
+    body.innerHTML = '<tr><td colspan="6" class="empty">Belum ada bahan baku.</td></tr>';
     return;
   }
 
-  let inv = getInv();
-  if (editingInvId) {
-    const old = inv.find(p => p.id === editingInvId);
-    const diff = old ? stock - old.stock : 0;
-    inv = inv.map(p => p.id === editingInvId ? { ...p, name, unit, stock } : p);
-    if (diff !== 0) addStockLog(editingInvId, diff > 0 ? 'masuk' : 'keluar', Math.abs(diff), 'Koreksi stok');
-    editingInvId = null;
-    document.getElementById('iSaveBtn').textContent = 'Simpan';
-    document.getElementById('iCost').disabled = false;
-  } else {
-    const id = 'i' + Date.now();
-    inv.push({ id, name, category: currentStokCategory, unit, stock });
-    if (stock > 0) addStockLog(id, 'masuk', stock, 'Stok awal', cost);
-  }
+  body.innerHTML = stokData.map(item => {
+    const stock  = item.current_stock;
+    const minSt  = item.minimum_stock;
+    const status = stock <= 0
+      ? '<span style="color:var(--danger);font-weight:600">Habis</span>'
+      : stock <= minSt
+        ? '<span style="color:var(--accent);font-weight:600">Menipis</span>'
+        : '<span style="color:#3E7A52;font-weight:600">Aman</span>';
 
-  setInv(inv);
-  document.getElementById('iName').value = '';
-  document.getElementById('iUnit').value = '';
-  document.getElementById('iStock').value = '';
-  document.getElementById('iCost').value = '';
-  renderStok();
-  closeStokItemModal();
+    return `<tr>
+      <td>${escapeHTML(item.name)}</td>
+      <td>
+        <div class="stock-adjust">
+          <button onclick="quickStockOut(${item.id_stock_item})">−</button>
+          <span class="val">${stock}</span>
+          <button onclick="openStockIn(${item.id_stock_item})">+</button>
+        </div>
+      </td>
+      <td>${escapeHTML(item.unit)}</td>
+      <td>${minSt}</td>
+      <td>${status}</td>
+      <td class="row-actions">
+        <button onclick="openEditStokModal(${item.id_stock_item})">Ubah</button>
+        <button class="del" onclick="openDeactivateModal(${item.id_stock_item})">Nonaktifkan</button>
+      </td>
+    </tr>`;
+  }).join('');
 }
 
+// ─── Render Tabel Riwayat ─────────────────────────────────────────────────────
+const SOURCE_LABEL = {
+  purchase: 'Pembelian',
+  harvest:  'Panen',
+  gift:     'Pemberian',
+  other:    'Lainnya',
+};
+
+function renderMovementsTable() {
+  const body = document.getElementById('stokLogBody');
+  if (!body) return;
+
+  if (!movementsData.length) {
+    body.innerHTML = '<tr><td colspan="8" class="empty">Tidak ada riwayat pada periode ini.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = movementsData.map(m => {
+    const dateStr = m.date ? new Date(m.date).toLocaleString('id-ID') : '-';
+    const typeStr = m.type === 'in' ? 'Masuk' : 'Keluar';
+    const srcStr  = SOURCE_LABEL[m.source_type] || m.source_type;
+    return `<tr>
+      <td>${dateStr}</td>
+      <td>${escapeHTML(m.item_name)}</td>
+      <td>${typeStr}</td>
+      <td>${m.quantity}</td>
+      <td>${escapeHTML(m.unit)}</td>
+      <td>${escapeHTML(srcStr)}</td>
+      <td>${escapeHTML(m.description || '-')}</td>
+      <td>${escapeHTML(m.user_name)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── Filter Tanggal ───────────────────────────────────────────────────────────
 function toggleStokCustomDates() {
   const filter = document.getElementById('stokLogFilter');
-  const dates = document.getElementById('stokCustomDates');
+  const dates  = document.getElementById('stokCustomDates');
   if (!filter || !dates) return;
-
   dates.style.display = filter.value === 'custom' ? 'flex' : 'none';
 }
 
 function getStokFilterRange() {
-  const today = new Date();
   const toLocalDate = d => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const y   = d.getFullYear();
+    const m   = String(d.getMonth() + 1).padStart(2, '0');
     const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   };
 
+  const today  = new Date();
   const filter = document.getElementById('stokLogFilter')?.value || 'today';
   let from = toLocalDate(today);
-  let to = from;
+  let to   = from;
 
   if (filter === 'week') {
     const start = new Date(today);
@@ -114,150 +186,159 @@ function getStokFilterRange() {
     from = toLocalDate(new Date(today.getFullYear(), today.getMonth(), 1));
   } else if (filter === 'custom') {
     from = document.getElementById('stokDateFrom')?.value || from;
-    to = document.getElementById('stokDateTo')?.value || to;
+    to   = document.getElementById('stokDateTo')?.value   || to;
   } else if (filter === 'all') {
-    from = '0000-01-01';
-    to = '9999-12-31';
+    from = '';
+    to   = '';
   }
 
   return { from, to };
 }
 
-function renderStok() {
-  document.querySelectorAll('#stokCatTabs .cat-tab').forEach(b =>
-    b.classList.toggle('active', b.dataset.c === currentStokCategory)
-  );
+// ─── Modal Tambah / Edit Bahan ────────────────────────────────────────────────
+function openTambahStokModal() {
+  editingStokId = null;
 
-  const catLabel = CAT_LABEL[currentStokCategory] || currentStokCategory;
-  const listTitle = document.getElementById('stokListTitle');
-  if (listTitle) {
-    listTitle.textContent = 'Daftar & Status Stok ' + catLabel;
-  }
+  document.getElementById('stokFormTitle').textContent  = 'Tambah Bahan Baru';
+  document.getElementById('iName').value                = '';
+  document.getElementById('iUnit').value                = '';
+  document.getElementById('iMinStock').value            = '0';
+  document.getElementById('iStock').value               = '0';
+  document.getElementById('iDesc').value                = '';
+  document.getElementById('iSaveBtn').textContent       = 'Simpan';
+  document.getElementById('stokItemError').textContent  = '';
+  document.getElementById('iInitialStockField').style.display = '';
 
-  const inv = getInv().filter(p => p.category === currentStokCategory);
-  const statusBody = document.getElementById('stokStatusBody');
-  if (statusBody) {
-    statusBody.innerHTML = inv.length
-      ? inv.map(p => {
-          const status = p.stock <= 0
-            ? '<span style="color:var(--danger);font-weight:600">Habis</span>'
-            : p.stock <= 5
-              ? '<span style="color:var(--accent);font-weight:600">Menipis</span>'
-              : '<span style="color:#3E7A52;font-weight:600">Aman</span>';
-
-          return `<tr>
-            <td>${escapeMenuHTML(p.name)}</td>
-            <td>
-              <div class="stock-adjust">
-                <button onclick="quickAdjust('${p.id}',-1)">−</button>
-                <span class="val">${p.stock}</span>
-                <button onclick="openStockIn('${p.id}')">+</button>
-              </div>
-            </td>
-            <td>${escapeMenuHTML(p.unit)}</td>
-            <td>${status}</td>
-            <td class="row-actions">
-              <button onclick="editInventoryItem('${p.id}')">Ubah</button>
-              <button class="del" onclick="deleteInventoryItem('${p.id}')">Hapus</button>
-            </td>
-          </tr>`;
-        }).join('')
-      : `<tr><td colspan="5" class="empty">Belum ada barang ${catLabel.toLowerCase()}</td></tr>`;
-  }
-
-  const allInv = getInv();
-  const { from, to } = getStokFilterRange();
-
-  const log = getLog().filter(l => {
-    const item = allInv.find(x => x.id === l.itemId);
-    if (!item || item.category !== currentStokCategory) return false;
-
-    const date = new Date(l.date);
-    if (Number.isNaN(date.getTime())) return false;
-
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    const logDate = `${y}-${m}-${d}`;
-
-    return logDate >= from && logDate <= to;
-  }).slice().reverse();
-
-  const logBody = document.getElementById('stokLogBody');
-  if (logBody) {
-    logBody.innerHTML = log.length
-      ? log.map(l => {
-          const item = allInv.find(x => x.id === l.itemId);
-          return `<tr>
-            <td>${new Date(l.date).toLocaleString('id-ID')}</td>
-            <td>${item ? escapeMenuHTML(item.name) : '-'}</td>
-            <td>${l.type === 'masuk' ? 'Masuk' : 'Keluar'}</td>
-            <td>${l.qty}</td>
-            <td>${item ? escapeMenuHTML(item.unit) : '-'}</td>
-            <td>${l.type === 'masuk' && l.cost > 0 ? rupiah(l.cost) : '-'}</td>
-            <td>${escapeMenuHTML(l.note || '-')}</td>
-          </tr>`;
-        }).join('')
-      : '<tr><td colspan="7" class="empty">Tidak ada riwayat pada periode ini</td></tr>';
-  }
-
-  const totalCost = log.reduce((sum, l) => {
-    return l.type === 'masuk' ? sum + (Number(l.cost) || 0) : sum;
-  }, 0);
-
-  const spendLabel = document.getElementById('stokSpendToday');
-  if (spendLabel) {
-    spendLabel.textContent = rupiah(totalCost);
-  }
-
-  const spendDescription = document.getElementById('stokSpendDescription');
-  if (spendDescription) {
-    spendDescription.textContent = `Total pembelian stok (${from} s.d. ${to}): `;
-  }
-}
-
-function editInventoryItem(id) {
-  const p = getInv().find(x => x.id === id);
-  if (!p) return;
-
-  document.getElementById('iName').value = p.name;
-  document.getElementById('iUnit').value = p.unit;
-  document.getElementById('iStock').value = p.stock;
-  document.getElementById('iCost').value = '';
-  document.getElementById('iCost').disabled = true;
-  editingInvId = id;
-  document.getElementById('iSaveBtn').textContent = 'Update';
-  document.getElementById('stokFormTitle').textContent = 'Ubah Barang';
   document.getElementById('stokItemModal').style.display = 'flex';
 }
 
-function deleteInventoryItem(id) {
-  if (!confirm('Hapus barang stok ini? Riwayat terkait akan tetap tersimpan.')) return;
-  setInv(getInv().filter(p => p.id !== id));
-  renderStok();
+function openEditStokModal(id) {
+  const item = stokData.find(i => i.id_stock_item === id);
+  if (!item) { alert('Bahan tidak ditemukan.'); return; }
+
+  editingStokId = id;
+
+  document.getElementById('stokFormTitle').textContent = 'Ubah Bahan';
+  document.getElementById('iName').value               = item.name;
+  document.getElementById('iUnit').value               = item.unit;
+  document.getElementById('iMinStock').value           = item.minimum_stock;
+  document.getElementById('iDesc').value               = item.description || '';
+  document.getElementById('iSaveBtn').textContent      = 'Update';
+  document.getElementById('stokItemError').textContent = '';
+
+  // Sembunyikan field stok awal saat mode edit
+  document.getElementById('iInitialStockField').style.display = 'none';
+
+  document.getElementById('stokItemModal').style.display = 'flex';
 }
 
-function quickAdjust(id, delta) {
-  let inv = getInv();
-  const item = inv.find(p => p.id === id);
+function closeStokItemModal() {
+  document.getElementById('stokItemModal').style.display = 'none';
+  editingStokId = null;
+}
+
+async function saveInventoryItem() {
+  const name     = document.getElementById('iName').value.trim();
+  const unit     = document.getElementById('iUnit').value.trim();
+  const minStock = parseInt(document.getElementById('iMinStock').value, 10);
+  const initSt   = parseInt(document.getElementById('iStock').value, 10) || 0;
+  const desc     = document.getElementById('iDesc').value.trim();
+  const errEl    = document.getElementById('stokItemError');
+
+  errEl.textContent = '';
+
+  if (!name) { errEl.textContent = 'Nama bahan wajib diisi.'; return; }
+  if (!unit) { errEl.textContent = 'Satuan wajib diisi.'; return; }
+  if (isNaN(minStock) || minStock < 0) { errEl.textContent = 'Stok minimum tidak boleh negatif.'; return; }
+
+  const btn = document.getElementById('iSaveBtn');
+  btn.disabled = true;
+
+  try {
+    let res, result;
+
+    if (editingStokId) {
+      // Update — kirim PUT langsung (tidak perlu method spoofing untuk JSON)
+      res = await fetch(stokUrl('update', editingStokId), {
+        method:  'PUT',
+        headers: stokHeaders(),
+        body:    JSON.stringify({ name, unit, minimum_stock: minStock, description: desc || null }),
+      });
+    } else {
+      // Create (POST)
+      res = await fetch(stokUrl('store'), {
+        method:  'POST',
+        headers: stokHeaders(),
+        body:    JSON.stringify({ name, unit, minimum_stock: minStock, initial_stock: initSt, description: desc || null }),
+      });
+    }
+
+    result = await res.json();
+
+    if (!res.ok) {
+      const msg = result.errors
+        ? Object.values(result.errors).flat().join('\n')
+        : (result.message || 'Terjadi kesalahan.');
+      errEl.textContent = msg;
+      return;
+    }
+
+    closeStokItemModal();
+    showStokMessage(result.message || 'Berhasil disimpan.');
+    await loadAndRenderStok();
+
+  } catch (err) {
+    errEl.textContent = err.message || 'Terjadi kesalahan jaringan.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ─── Nonaktifkan Bahan ────────────────────────────────────────────────────────
+function openDeactivateModal(id) {
+  const item = stokData.find(i => i.id_stock_item === id);
   if (!item) return;
-  if (delta < 0 && item.stock <= 0) return;
 
-  inv = inv.map(p => p.id === id ? { ...p, stock: Math.round((p.stock + delta) * 1000) / 1000 } : p);
-  setInv(inv);
-  addStockLog(id, delta > 0 ? 'masuk' : 'keluar', 1, '');
-  renderStok();
+  document.getElementById('deactivateName').textContent = item.name;
+  document.getElementById('deactivateModal').style.display = 'flex';
+
+  const btn = document.getElementById('confirmDeactivateBtn');
+  // Pasang handler baru (hapus lama agar tidak menumpuk)
+  btn.onclick = async function () {
+    btn.disabled = true;
+    try {
+      const res = await fetch(stokUrl('deactivate', id), {
+        method:  'POST',
+        headers: stokHeaders(),
+      });
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.message || 'Gagal menonaktifkan.');
+      closeDeactivateModal();
+      showStokMessage(result.message || 'Bahan berhasil dinonaktifkan.');
+      await loadAndRenderStok();
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  };
 }
 
+function closeDeactivateModal() {
+  document.getElementById('deactivateModal').style.display = 'none';
+}
+
+// ─── Stok Masuk ───────────────────────────────────────────────────────────────
 function openStockIn(id) {
-  const it = getInv().find(p => p.id === id);
-  if (!it) return;
+  const item = stokData.find(i => i.id_stock_item === id);
+  if (!item) return;
 
   stockInId = id;
-  document.getElementById('stockInName').textContent = it.name + ' (' + it.unit + ')';
-  document.getElementById('stockInQty').value = '1';
-  document.getElementById('stockInCost').value = '';
-  document.getElementById('stockInError').textContent = '';
+  document.getElementById('stockInName').textContent   = `${item.name} (${item.unit})`;
+  document.getElementById('stockInQty').value          = '1';
+  document.getElementById('stockInSource').value       = 'purchase';
+  document.getElementById('stockInDesc').value         = '';
+  document.getElementById('stockInError').textContent  = '';
   document.getElementById('stockInModal').style.display = 'flex';
   document.getElementById('stockInQty').focus();
 }
@@ -267,23 +348,66 @@ function closeStockIn() {
   stockInId = null;
 }
 
-function confirmStockIn() {
-  const qty = Number(document.getElementById('stockInQty').value);
-  const cost = Number(document.getElementById('stockInCost').value) || 0;
-  const err = document.getElementById('stockInError');
+async function confirmStockIn() {
+  const qty    = parseInt(document.getElementById('stockInQty').value, 10);
+  const source = document.getElementById('stockInSource').value;
+  const desc   = document.getElementById('stockInDesc').value.trim();
+  const errEl  = document.getElementById('stockInError');
 
-  if (!(qty > 0)) {
-    err.textContent = 'Jumlah masuk harus lebih dari 0.';
+  errEl.textContent = '';
+
+  if (!(qty > 0)) { errEl.textContent = 'Jumlah masuk harus lebih dari 0.'; return; }
+
+  try {
+    const res = await fetch(stokUrl('stock-in', stockInId), {
+      method:  'POST',
+      headers: stokHeaders(),
+      body:    JSON.stringify({ quantity: qty, source_type: source, description: desc || null }),
+    });
+    const result = await res.json();
+    if (!res.ok) { errEl.textContent = result.message || 'Gagal menambah stok.'; return; }
+
+    closeStockIn();
+    showStokMessage(result.message || 'Stok berhasil ditambahkan.');
+    await loadAndRenderStok();
+  } catch (err) {
+    errEl.textContent = err.message || 'Terjadi kesalahan jaringan.';
+  }
+}
+
+// ─── Quick Stock Out (tombol −) ───────────────────────────────────────────────
+async function quickStockOut(id) {
+  const item = stokData.find(i => i.id_stock_item === id);
+  if (!item) return;
+  if (item.current_stock <= 0) {
+    showStokMessage('Stok sudah habis, tidak bisa dikurangi.', true);
     return;
   }
-  if (cost < 0) {
-    err.textContent = 'Harga tidak boleh minus.';
-    return;
-  }
 
-  const inv = getInv().map(p => p.id === stockInId ? { ...p, stock: Math.round((p.stock + qty) * 1000) / 1000 } : p);
-  setInv(inv);
-  addStockLog(stockInId, 'masuk', qty, '', cost);
-  closeStockIn();
-  renderStok();
+  try {
+    const res = await fetch(stokUrl('stock-out', id), {
+      method:  'POST',
+      headers: stokHeaders(),
+      body:    JSON.stringify({ quantity: 1, description: 'Koreksi stok' }),
+    });
+    const result = await res.json();
+    if (!res.ok) {
+      showStokMessage(result.message || 'Gagal mengurangi stok.', true);
+      return;
+    }
+    showStokMessage(result.message || 'Stok berhasil dikurangi.');
+    await loadAndRenderStok();
+  } catch (err) {
+    showStokMessage(err.message || 'Terjadi kesalahan jaringan.', true);
+  }
+}
+
+// ─── Notifikasi Inline ────────────────────────────────────────────────────────
+function showStokMessage(msg, isError = false) {
+  const el = document.getElementById('stokMessage');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--danger)' : '#3E7A52';
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.textContent = ''; }, 5000);
 }

@@ -5,6 +5,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\QrMenuController;
+use App\Http\Controllers\StockItemController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\OrderController;
@@ -135,15 +136,28 @@ Route::middleware('auth')->group(function () use ($role) {
 
         Route::delete('/menu/{menu}', [MenuController::class, 'destroy'])
             ->name('menu.destroy');
+
+        // Atur Resep Menu
+        Route::get('/menu/{menu}/recipe', [MenuController::class, 'getRecipe'])
+            ->name('menu.recipe.get');
+
+        Route::post('/menu/{menu}/recipe', [MenuController::class, 'saveRecipe'])
+            ->name('menu.recipe.save');
+
+        Route::delete('/menu/{menu}/recipe/{ingredient}', [MenuController::class, 'destroyRecipeIngredient'])
+            ->name('menu.recipe.destroy-ingredient');
     });
 
-    // Admin saja
+    // Admin — Stok Barang
     Route::group(['middleware' => [$role('admin')]], function () {
-        Route::get('/stok', function () {
-            return view('stok.index', [
-                'pageKey' => 'stok'
-            ]);
-        })->name('stok.index');
+        Route::get('/stok',                                   [StockItemController::class, 'index'])     ->name('stok.index');
+        Route::get('/stok/data',                              [StockItemController::class, 'data'])      ->name('stok.data');
+        Route::get('/stok/movements',                         [StockItemController::class, 'movements']) ->name('stok.movements');
+        Route::post('/stok',                                  [StockItemController::class, 'store'])     ->name('stok.store');
+        Route::put('/stok/{stockItem}',                       [StockItemController::class, 'update'])    ->name('stok.update');
+        Route::post('/stok/{stockItem}/deactivate',           [StockItemController::class, 'destroy'])   ->name('stok.deactivate');
+        Route::post('/stok/{stockItem}/stock-in',             [StockItemController::class, 'stockIn'])   ->name('stok.stock-in');
+        Route::post('/stok/{stockItem}/stock-out',            [StockItemController::class, 'stockOut'])  ->name('stok.stock-out');
     });
 
             // Kasir saja

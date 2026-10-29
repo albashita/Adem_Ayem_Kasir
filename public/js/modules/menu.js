@@ -47,6 +47,7 @@ function menuUrl(action, id = null) {
 
   if (action === 'list') return page.dataset.listUrl;
   if (action === 'store') return page.dataset.storeUrl;
+  if (action === 'recipe') return `${page.dataset.recipeUrl || '/menu'}/${id}/recipe`;
 
   const base = action === 'update'
     ? page.dataset.updateUrl
@@ -86,7 +87,7 @@ function openMenuModal(id = null) {
 
   document.getElementById('menuModalTitle').textContent = id ? 'Ubah Menu' : 'Tambah Menu';
   document.getElementById('mSaveBtn').textContent = id ? 'Update' : 'Simpan';
-  document.getElementById('mCode').value = id ? '' : 'Otomatis';
+  document.getElementById('mCode').value = '';
 
   buildEmojiPick();
   document.getElementById('menuModal').style.display = 'flex';
@@ -99,7 +100,7 @@ function openMenuModal(id = null) {
       return;
     }
 
-    document.getElementById('mCode').value = 'MENU-' + String(menu.id_menu).padStart(3, '0');
+    document.getElementById('mCode').value = menu.kode_menu || menu.code || ('MENU-' + String(menu.id_menu).padStart(3, '0'));
     document.getElementById('mName').value = menu.name || '';
     document.getElementById('mCat').value = String(menu.categories_id_categorie ?? '');
     document.getElementById('mPrice').value = menu.price ?? '';
@@ -140,6 +141,12 @@ async function renderMenuAdmin() {
 
     dbMenus = Array.isArray(result) ? result : (result.menus || []);
 
+    const isOwner = (typeof SERVER_USER !== 'undefined') && (
+      SERVER_USER.db_role === 'owner' ||
+      SERVER_USER.role === 'superadmin' ||
+      SERVER_USER.role === 'owner'
+    );
+
     body.innerHTML = dbMenus.length
       ? dbMenus.map(menu => {
           const imageUrl = menu.image_url || null;
@@ -157,7 +164,7 @@ async function renderMenuAdmin() {
             <tr>
               <td>${imageHTML}</td>
               <td style="font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: normal;">
-                MENU-${String(menu.id_menu).padStart(3, '0')}
+                ${escapeMenuHTML(menu.kode_menu || menu.code || ('MENU-' + String(menu.id_menu).padStart(3, '0')))}
               </td>
               <td>${escapeMenuHTML(menu.name)}</td>
               <td>
@@ -167,6 +174,14 @@ async function renderMenuAdmin() {
               </td>
               <td>${rupiah(menu.price)}</td>
               <td class="row-actions">
+                ${isOwner ? `
+                  <button
+                    type="button"
+                    class="btn-recipe"
+                    onclick="openRecipeModal(${Number(menu.id_menu)})"
+                    title="Atur resep bahan baku untuk menu ini"
+                  >Atur Resep</button>
+                ` : ''}
                 <button
                   type="button"
                   onclick="openMenuModal(${Number(menu.id_menu)})"
@@ -195,6 +210,7 @@ async function renderMenuAdmin() {
 async function saveMenu(event) {
   if (event) event.preventDefault();
 
+  const code = document.getElementById('mCode').value.trim();
   const name = document.getElementById('mName').value.trim();
   const categoryId = document.getElementById('mCat').value;
   const price = Number(document.getElementById('mPrice').value);
@@ -202,6 +218,12 @@ async function saveMenu(event) {
 
   const imageInput = document.getElementById('mImage');
   const imageFile = imageInput?.files?.[0] || null;
+
+  if (!code) {
+    alert('Kode menu wajib diisi.');
+    document.getElementById('mCode').focus();
+    return;
+  }
 
   if (!name || !categoryId || !Number.isInteger(price) || price < 1) {
     alert('Nama menu, kategori, dan harga wajib diisi dengan benar.');
@@ -222,6 +244,7 @@ async function saveMenu(event) {
   button.disabled = true;
 
   const formData = new FormData();
+  formData.append('kode_menu', code);
   formData.append('name', name);
   formData.append('description', description);
   formData.append('price', String(price));
@@ -324,5 +347,407 @@ function closeDeleteMenuModal() {
   const modal = document.getElementById('deleteMenuModal');
   if (modal) {
     modal.style.display = 'none';
+  }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Pengaturan Resep Menu (Owner / Superadmin)
+|--------------------------------------------------------------------------
+*/
+let currentRecipeMenuId = null;
+let currentRecipeMenu = null;
+let recipeIngredients = [];
+let availableStockItems = [];
+let initialRecipeSnapshot = null;
+
+function getRecipeSnapshot(ingredients) {
+  return (ingredients || [])
+    .map(item => ({
+      id_stock_item: Number(item.id_stock_item),
+      quantity_required: parseFloat(item.quantity_required) || 0
+    }))
+    .filter(item => item.id_stock_item > 0)
+    .sort((a, b) => a.id_stock_item - b.id_stock_item);
+}
+
+function isRecipeChanged() {
+  if (initialRecipeSnapshot === null) return false;
+  const current = getRecipeSnapshot(recipeIngredients);
+  if (current.length !== initialRecipeSnapshot.length) return true;
+  for (let i = 0; i < current.length; i++) {
+    if (current[i].id_stock_item !== initialRecipeSnapshot[i].id_stock_item) {
+      return true;
+    }
+    if (Math.abs(current[i].quantity_required - initialRecipeSnapshot[i].quantity_required) > 0.0001) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function updateSaveRecipeButtonState() {
+  const saveBtn = document.getElementById('btnSaveRecipe');
+  if (!saveBtn) return;
+  const changed = isRecipeChanged();
+  saveBtn.disabled = !changed;
+}
+
+function showRecipeAlert(type, message) {
+  const alertEl = document.getElementById('recipeAlert');
+  if (!alertEl) return;
+  alertEl.style.display = 'block';
+  if (type === 'error') {
+    alertEl.style.background = '#fef2f2';
+    alertEl.style.color = '#991b1b';
+    alertEl.style.border = '1px solid #fecaca';
+  } else if (type === 'success') {
+    alertEl.style.background = '#f0fdf4';
+    alertEl.style.color = '#166534';
+    alertEl.style.border = '1px solid #bbf7d0';
+  } else {
+    alertEl.style.background = '#eff6ff';
+    alertEl.style.color = '#1e40af';
+    alertEl.style.border = '1px solid #bfdbfe';
+  }
+  alertEl.textContent = message;
+}
+
+function clearRecipeAlert() {
+  const alertEl = document.getElementById('recipeAlert');
+  if (alertEl) {
+    alertEl.style.display = 'none';
+    alertEl.textContent = '';
+  }
+}
+
+async function openRecipeModal(menuId) {
+  currentRecipeMenuId = menuId;
+  currentRecipeMenu = null;
+  recipeIngredients = [];
+  availableStockItems = [];
+  initialRecipeSnapshot = null;
+
+  clearRecipeAlert();
+
+  const modal = document.getElementById('recipeModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+
+  const nameEl = document.getElementById('recipeMenuName');
+  const codeEl = document.getElementById('recipeMenuCode');
+  const tbody = document.getElementById('recipeTableBody');
+  const stockSelect = document.getElementById('recipeStockSelect');
+  const qtyInput = document.getElementById('recipeQtyInput');
+  const unitDisplay = document.getElementById('recipeUnitDisplay');
+  const saveBtn = document.getElementById('btnSaveRecipe');
+
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Simpan Resep';
+  }
+
+  if (nameEl) nameEl.textContent = 'Memuat...';
+  if (codeEl) codeEl.textContent = '...';
+  if (stockSelect) stockSelect.innerHTML = '<option value="">-- Memuat Bahan Baku --</option>';
+  if (qtyInput) qtyInput.value = '';
+  if (unitDisplay) unitDisplay.textContent = '-';
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:16px; color:#64748b;">Memuat data resep...</td></tr>';
+  }
+
+  try {
+    const response = await fetch(menuUrl('recipe', menuId), {
+      headers: menuHeaders()
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      throw new Error(result.message || 'Gagal memuat data resep.');
+    }
+
+    currentRecipeMenu = result.menu || {};
+    if (nameEl) nameEl.textContent = currentRecipeMenu.name || '-';
+    if (codeEl) codeEl.textContent = currentRecipeMenu.kode_menu || currentRecipeMenu.code || `MENU-${String(menuId).padStart(3, '0')}`;
+
+    availableStockItems = Array.isArray(result.available_stock_items) ? result.available_stock_items : [];
+    recipeIngredients = (result.ingredients || []).map(item => ({
+      id_menu_ingredient: item.id_menu_ingredient || null,
+      id_stock_item: Number(item.id_stock_item),
+      name: item.name,
+      unit: item.unit,
+      quantity_required: Number(item.quantity_required)
+    }));
+
+    initialRecipeSnapshot = getRecipeSnapshot(recipeIngredients);
+
+    populateRecipeStockSelect();
+    renderRecipeTable();
+    updateSaveRecipeButtonState();
+  } catch (error) {
+    showRecipeAlert('error', error.message || 'Terjadi kesalahan saat memuat resep.');
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; padding:16px; color:#dc2626;">${escapeMenuHTML(error.message)}</td></tr>`;
+    }
+    if (saveBtn) saveBtn.disabled = true;
+  }
+}
+
+function closeRecipeModal() {
+  const modal = document.getElementById('recipeModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+  currentRecipeMenuId = null;
+  currentRecipeMenu = null;
+  recipeIngredients = [];
+  availableStockItems = [];
+  initialRecipeSnapshot = null;
+  clearRecipeAlert();
+
+  const saveBtn = document.getElementById('btnSaveRecipe');
+  if (saveBtn) saveBtn.disabled = true;
+}
+
+function populateRecipeStockSelect() {
+  const select = document.getElementById('recipeStockSelect');
+  if (!select) return;
+
+  const currentSelectedStockIds = new Set(recipeIngredients.map(i => Number(i.id_stock_item)));
+
+  const options = ['<option value="">-- Pilih Bahan Baku --</option>'];
+  availableStockItems.forEach(item => {
+    const isAlreadyInRecipe = currentSelectedStockIds.has(Number(item.id_stock_item));
+    options.push(`
+      <option value="${item.id_stock_item}" ${isAlreadyInRecipe ? 'disabled' : ''}>
+        ${escapeMenuHTML(item.name)} (${escapeMenuHTML(item.unit)})${isAlreadyInRecipe ? ' - Sudah dalam resep' : ''}
+      </option>
+    `);
+  });
+
+  select.innerHTML = options.join('');
+  onRecipeStockSelectChange();
+}
+
+function onRecipeStockSelectChange() {
+  const select = document.getElementById('recipeStockSelect');
+  const unitDisplay = document.getElementById('recipeUnitDisplay');
+  if (!select || !unitDisplay) return;
+
+  const selectedId = Number(select.value);
+  const found = availableStockItems.find(i => Number(i.id_stock_item) === selectedId);
+
+  unitDisplay.textContent = found ? found.unit : '-';
+}
+
+function addRecipeIngredient() {
+  clearRecipeAlert();
+
+  const select = document.getElementById('recipeStockSelect');
+  const qtyInput = document.getElementById('recipeQtyInput');
+
+  if (!select || !qtyInput) return;
+
+  const stockId = Number(select.value);
+  if (!stockId) {
+    showRecipeAlert('error', 'Pilih bahan baku dari data Stok Barang terlebih dahulu.');
+    select.focus();
+    return;
+  }
+
+  const stockItem = availableStockItems.find(i => Number(i.id_stock_item) === stockId);
+  if (!stockItem) {
+    showRecipeAlert('error', 'Data bahan baku tidak valid.');
+    return;
+  }
+
+  // Cegah bahan baku yang sama dimasukkan dua kali dalam resep
+  if (recipeIngredients.some(i => Number(i.id_stock_item) === stockId)) {
+    showRecipeAlert('error', `Bahan baku "${stockItem.name}" sudah ada dalam resep menu ini.`);
+    return;
+  }
+
+  const qty = parseFloat(qtyInput.value);
+  if (isNaN(qty) || qty <= 0) {
+    showRecipeAlert('error', 'Jumlah bahan baku harus berupa angka lebih besar dari nol.');
+    qtyInput.focus();
+    return;
+  }
+
+  recipeIngredients.push({
+    id_stock_item: stockItem.id_stock_item,
+    name: stockItem.name,
+    unit: stockItem.unit,
+    quantity_required: qty
+  });
+
+  // Reset input form
+  select.value = '';
+  qtyInput.value = '';
+  onRecipeStockSelectChange();
+
+  populateRecipeStockSelect();
+  renderRecipeTable();
+  updateSaveRecipeButtonState();
+  showRecipeAlert('success', `Bahan "${stockItem.name}" berhasil ditambahkan ke daftar.`);
+}
+
+function updateRecipeQuantity(stockItemId, newQty) {
+  clearRecipeAlert();
+  const parsed = parseFloat(newQty);
+  const item = recipeIngredients.find(i => Number(i.id_stock_item) === Number(stockItemId));
+  if (item) {
+    item.quantity_required = isNaN(parsed) ? 0 : parsed;
+  }
+  updateSaveRecipeButtonState();
+}
+
+function removeRecipeIngredient(stockItemId) {
+  clearRecipeAlert();
+  const found = recipeIngredients.find(i => Number(i.id_stock_item) === Number(stockItemId));
+  const itemName = found ? found.name : 'Bahan';
+
+  recipeIngredients = recipeIngredients.filter(i => Number(i.id_stock_item) !== Number(stockItemId));
+
+  populateRecipeStockSelect();
+  renderRecipeTable();
+  updateSaveRecipeButtonState();
+  showRecipeAlert('info', `Bahan "${itemName}" dihapus dari daftar resep.`);
+}
+
+function renderRecipeTable() {
+  const tbody = document.getElementById('recipeTableBody');
+  if (!tbody) return;
+
+  if (!recipeIngredients.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align:center; padding:18px; color:#64748b;">
+          Belum ada bahan baku yang diatur untuk resep menu ini.<br>
+          <small style="color:#94a3b8;">Pilih bahan baku dari form di atas untuk menambahkannya ke resep.</small>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = recipeIngredients.map((item, index) => `
+    <tr>
+      <td style="text-align:center; font-weight:500; color:#64748b;">${index + 1}</td>
+      <td style="font-weight:600; color:#1e293b;">${escapeMenuHTML(item.name)}</td>
+      <td style="text-align:center;">
+        <input
+          type="number"
+          step="any"
+          min="0.001"
+          value="${item.quantity_required}"
+          oninput="updateRecipeQuantity(${Number(item.id_stock_item)}, this.value)"
+          onchange="updateRecipeQuantity(${Number(item.id_stock_item)}, this.value)"
+          style="width:90px; padding:6px 8px; border:1px solid #cbd5e1; border-radius:6px; text-align:right; font-size:13px;"
+          title="Ubah jumlah bahan baku"
+        >
+      </td>
+      <td style="text-align:center;">
+        <span class="tag" style="background:#f1f5f9; color:#475569; font-size:12px;">
+          ${escapeMenuHTML(item.unit)}
+        </span>
+      </td>
+      <td style="text-align:center;">
+        <button
+          type="button"
+          class="del"
+          onclick="removeRecipeIngredient(${Number(item.id_stock_item)})"
+          style="padding:5px 10px; font-size:12px; border-radius:4px;"
+          title="Hapus dari resep"
+        >
+          Hapus
+        </button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function saveRecipe() {
+  clearRecipeAlert();
+
+  if (!currentRecipeMenuId) {
+    showRecipeAlert('error', 'Menu tidak dipilih.');
+    return;
+  }
+
+  if (!isRecipeChanged()) {
+    showRecipeAlert('info', 'Tidak ada perubahan pada resep.');
+    return;
+  }
+
+  // Validasi: jumlah bahan harus lebih besar dari 0
+  for (const item of recipeIngredients) {
+    const qty = parseFloat(item.quantity_required);
+    if (isNaN(qty) || qty <= 0) {
+      showRecipeAlert('error', `Jumlah bahan "${item.name}" harus lebih besar dari nol.`);
+      return;
+    }
+  }
+
+  // Validasi duplikasi
+  const stockIds = recipeIngredients.map(i => Number(i.id_stock_item));
+  if (new Set(stockIds).size !== stockIds.length) {
+    showRecipeAlert('error', 'Terdapat bahan baku duplikat dalam resep.');
+    return;
+  }
+
+  const saveBtn = document.getElementById('btnSaveRecipe');
+  if (saveBtn) {
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Menyimpan...';
+  }
+
+  try {
+    const payload = {
+      ingredients: recipeIngredients.map(i => ({
+        id_stock_item: Number(i.id_stock_item),
+        quantity_required: Number(i.quantity_required)
+      }))
+    };
+
+    const response = await fetch(menuUrl('recipe', currentRecipeMenuId), {
+      method: 'POST',
+      headers: menuHeaders(),
+      body: JSON.stringify(payload)
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      const message = result.errors
+        ? Object.values(result.errors).flat().join('\n')
+        : (result.message || 'Gagal menyimpan resep menu.');
+      throw new Error(message);
+    }
+
+    recipeIngredients = (result.ingredients || []).map(item => ({
+      id_menu_ingredient: item.id_menu_ingredient || null,
+      id_stock_item: Number(item.id_stock_item),
+      name: item.name,
+      unit: item.unit,
+      quantity_required: Number(item.quantity_required)
+    }));
+
+    // Perbarui snapshot awal sesuai data terbaru agar tombol Simpan nonaktif
+    initialRecipeSnapshot = getRecipeSnapshot(recipeIngredients);
+    closeRecipeModal();
+
+    populateRecipeStockSelect();
+    renderRecipeTable();
+    updateSaveRecipeButtonState();
+
+    // Notifikasi keberhasilan HANYA ditampilkan di dalam modal
+    showRecipeAlert('success', result.message || 'Resep menu berhasil disimpan!');
+  } catch (error) {
+    showRecipeAlert('error', error.message || 'Terjadi kesalahan saat menyimpan resep.');
+    updateSaveRecipeButtonState();
+  } finally {
+    if (saveBtn) {
+      saveBtn.textContent = 'Simpan Resep';
+    }
   }
 }

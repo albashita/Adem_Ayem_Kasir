@@ -11,6 +11,7 @@
         'name'     => auth()->user()->name,
         'username' => auth()->user()->username,
         'role'     => $roleMap[auth()->user()->role] ?? 'kasir',
+        'db_role'  => auth()->user()->role,
     ];
 
     $pageKeyMap = [
