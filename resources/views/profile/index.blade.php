@@ -62,7 +62,7 @@
 
         @foreach ([
             ['myOldPass',     'Password Lama (wajib jika ganti password)', 'Password saat ini'],
-            ['myPass',        'Password Baru (opsional)',                  'Biarkan kosong jika tidak diubah'],
+            ['myPass',        'Password Baru',                  'Biarkan kosong jika tidak diubah'],
             ['myPassConfirm', 'Konfirmasi Password Baru',                  'Ulangi password baru'],
         ] as [$id, $label, $placeholder])
         <div class="field">
