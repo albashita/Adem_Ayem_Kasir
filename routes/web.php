@@ -73,6 +73,9 @@ Route::redirect('/home', '/');
 Route::get('/qr-menu', [QrMenuController::class, 'index'])
     ->name('qr.menu');
 
+Route::get('/qr-menu/data', [QrMenuController::class, 'data'])
+    ->name('qr-menu.data');
+
 /*
 |--------------------------------------------------------------------------
 | Auth
@@ -155,12 +158,13 @@ Route::middleware('auth')->group(function () use ($role) {
         Route::get('/stok/movements', [StockItemController::class, 'movements'])->name('stok.movements');
         Route::post('/stok', [StockItemController::class, 'store'])->name('stok.store');
         Route::put('/stok/{stockItem}', [StockItemController::class, 'update'])->name('stok.update');
+        Route::post('/stok/{stockItem}/status', [StockItemController::class, 'toggleStatus'])->name('stok.status');
         Route::post('/stok/{stockItem}/deactivate', [StockItemController::class, 'destroy'])->name('stok.deactivate');
         Route::post('/stok/{stockItem}/stock-in', [StockItemController::class, 'stockIn'])->name('stok.stock-in');
         Route::post('/stok/{stockItem}/stock-out', [StockItemController::class, 'stockOut'])->name('stok.stock-out');
     });
 
-    // Kasir saja
+    // Kasir saja (Riwayat dipindahkan ke sini)
     Route::group(['middleware' => [$role('kasir')]], function () {
         Route::get('/kasir', function () {
             return view('kasir.index', [
@@ -176,13 +180,16 @@ Route::middleware('auth')->group(function () use ($role) {
 
         Route::post('/kasir/orders', [OrderController::class, 'store'])
             ->name('kasir.orders.store');
+
+        // === Rute Riwayat yang dipindah ===
+        Route::get('/riwayat', fn () => view('riwayat.index', ['pageKey' => 'riwayat']))
+            ->name('riwayat.index');
+        Route::get('/riwayat/data', [OrderController::class, 'history'])
+            ->name('riwayat.data');
+        Route::post('/riwayat/{id}/pay', [OrderController::class, 'pay'])
+            ->name('riwayat.pay');
     });
-    Route::get('/riwayat', fn () => view('riwayat.index', ['pageKey' => 'riwayat']))
-        ->name('riwayat.index');
-    Route::get('/riwayat/data', [OrderController::class, 'history'])
-        ->name('riwayat.data');
-    Route::post('/riwayat/{id}/pay', [OrderController::class, 'pay'])
-        ->name('riwayat.pay');
+    
 
     // Semua role yang sudah login
     Route::get('/laporan', function () {
@@ -213,9 +220,3 @@ Route::fallback(function (Request $request) {
 
     return redirect()->route('home');
 });
-
-Route::get('/qr-menu', [QrMenuController::class, 'index'])
-    ->name('qr-menu');
-
-Route::get('/qr-menu/data', [QrMenuController::class, 'data'])
-    ->name('qr-menu.data');

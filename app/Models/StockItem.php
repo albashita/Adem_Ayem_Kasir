@@ -10,6 +10,8 @@ class StockItem extends Model
 
     protected $primaryKey = 'id_stock_item';
 
+    public const ALLOWED_UNITS = ['gram', 'liter', 'pcs'];
+
     protected $fillable = [
         'name',
         'unit',

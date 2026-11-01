@@ -24,6 +24,7 @@ function stokUrl(action, id = null) {
     case 'store':      return p.dataset.storeUrl;
     case 'movements':  return p.dataset.movementsUrl;
     case 'update':     return `${p.dataset.updateUrl}/${id}`;
+    case 'status':     return `${p.dataset.statusUrl || p.dataset.updateUrl}/${id}/status`;
     case 'deactivate': return `${p.dataset.destroyUrl}/${id}/deactivate`;
     case 'stock-in':   return `${p.dataset.stockInUrl}/${id}/stock-in`;
     case 'stock-out':  return `${p.dataset.stockOutUrl}/${id}/stock-out`;
@@ -95,16 +96,22 @@ function renderStokTable() {
   }
 
   body.innerHTML = stokData.map(item => {
-    const stock  = item.current_stock;
-    const minSt  = item.minimum_stock;
-    const status = stock <= 0
-      ? '<span style="color:var(--danger);font-weight:600">Habis</span>'
-      : stock <= minSt
-        ? '<span style="color:var(--accent);font-weight:600">Menipis</span>'
-        : '<span style="color:#3E7A52;font-weight:600">Aman</span>';
+    const stock    = Number(item.current_stock) || 0;
+    const minSt    = Number(item.minimum_stock) || 0;
+    const isActive = Boolean(item.is_active);
 
-    return `<tr>
-      <td>${escapeHTML(item.name)}</td>
+    const stockStatus = stock <= 0
+      ? '<span class="stock-status-badge badge-danger">Habis</span>'
+      : stock <= minSt
+        ? '<span class="stock-status-badge badge-warning">Menipis</span>'
+        : '<span class="stock-status-badge badge-success">Aman</span>';
+
+    const activeStatusBadge = isActive
+      ? `<span class="status-pill status-pill-active" id="statusBadge_${item.id_stock_item}">Aktif</span>`
+      : `<span class="status-pill status-pill-inactive" id="statusBadge_${item.id_stock_item}">Nonaktif</span>`;
+
+    return `<tr id="stockRow_${item.id_stock_item}" class="${isActive ? '' : 'row-dimmed'}">
+      <td><strong>${escapeHTML(item.name)}</strong></td>
       <td>
         <div class="stock-adjust">
           <button onclick="quickStockOut(${item.id_stock_item})">−</button>
@@ -114,10 +121,27 @@ function renderStokTable() {
       </td>
       <td>${escapeHTML(item.unit)}</td>
       <td>${minSt}</td>
-      <td>${status}</td>
-      <td class="row-actions">
-        <button onclick="openEditStokModal(${item.id_stock_item})">Ubah</button>
-        <button class="del" onclick="openDeactivateModal(${item.id_stock_item})">Nonaktifkan</button>
+      <td id="statusCell_${item.id_stock_item}">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          ${activeStatusBadge}
+          ${isActive ? stockStatus : ''}
+        </div>
+      </td>
+      <td class="row-actions" style="display:flex;align-items:center;gap:12px;">
+        <button type="button" class="btn-action-edit" onclick="openEditStokModal(${item.id_stock_item})">Ubah</button>
+        <div class="switch-control-wrap" id="switchWrap_${item.id_stock_item}">
+          <label class="switch-toggle" title="${isActive ? 'Klik untuk menonaktifkan bahan' : 'Klik untuk mengaktifkan bahan'}">
+            <input type="checkbox"
+                   id="switch_${item.id_stock_item}"
+                   ${isActive ? 'checked' : ''}
+                   onchange="handleToggleStatus(${item.id_stock_item}, this)">
+            <span class="slider"></span>
+            <span class="switch-spinner" id="spinner_${item.id_stock_item}" style="display:none;"></span>
+          </label>
+          <span class="switch-text ${isActive ? 'text-active' : 'text-inactive'}" id="switchText_${item.id_stock_item}">
+            ${isActive ? 'Aktif' : 'Nonaktif'}
+          </span>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -196,6 +220,8 @@ function getStokFilterRange() {
 }
 
 // ─── Modal Tambah / Edit Bahan ────────────────────────────────────────────────
+const ALLOWED_UNITS = ['gram', 'liter', 'pcs'];
+
 function openTambahStokModal() {
   editingStokId = null;
 
@@ -213,14 +239,14 @@ function openTambahStokModal() {
 }
 
 function openEditStokModal(id) {
-  const item = stokData.find(i => i.id_stock_item === id);
+  const item = stokData.find(i => Number(i.id_stock_item) === Number(id));
   if (!item) { alert('Bahan tidak ditemukan.'); return; }
 
   editingStokId = id;
 
   document.getElementById('stokFormTitle').textContent = 'Ubah Bahan';
   document.getElementById('iName').value               = item.name;
-  document.getElementById('iUnit').value               = item.unit;
+  document.getElementById('iUnit').value               = item.unit || 'gram';
   document.getElementById('iMinStock').value           = item.minimum_stock;
   document.getElementById('iDesc').value               = item.description || '';
   document.getElementById('iSaveBtn').textContent      = 'Update';
@@ -248,7 +274,10 @@ async function saveInventoryItem() {
   errEl.textContent = '';
 
   if (!name) { errEl.textContent = 'Nama bahan wajib diisi.'; return; }
-  if (!unit) { errEl.textContent = 'Satuan wajib diisi.'; return; }
+  if (!unit || !ALLOWED_UNITS.includes(unit)) {
+    errEl.textContent = 'Satuan wajib dipilih: gram, liter, atau pcs.';
+    return;
+  }
   if (isNaN(minStock) || minStock < 0) { errEl.textContent = 'Stok minimum tidak boleh negatif.'; return; }
 
   const btn = document.getElementById('iSaveBtn');
@@ -294,38 +323,92 @@ async function saveInventoryItem() {
   }
 }
 
-// ─── Nonaktifkan Bahan ────────────────────────────────────────────────────────
-function openDeactivateModal(id) {
-  const item = stokData.find(i => i.id_stock_item === id);
+// ─── Ubah Status Bahan (Switch Toggle) ─────────────────────────────────────────
+async function handleToggleStatus(id, inputEl) {
+  const item = stokData.find(i => Number(i.id_stock_item) === Number(id));
   if (!item) return;
 
-  document.getElementById('deactivateName').textContent = item.name;
-  document.getElementById('deactivateModal').style.display = 'flex';
+  const previousState = !inputEl.checked;
+  const targetState = inputEl.checked; // true = aktif, false = nonaktif
 
-  const btn = document.getElementById('confirmDeactivateBtn');
-  // Pasang handler baru (hapus lama agar tidak menumpuk)
-  btn.onclick = async function () {
-    btn.disabled = true;
-    try {
-      const res = await fetch(stokUrl('deactivate', id), {
-        method:  'POST',
-        headers: stokHeaders(),
-      });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message || 'Gagal menonaktifkan.');
-      closeDeactivateModal();
-      showStokMessage(result.message || 'Bahan berhasil dinonaktifkan.');
-      await loadAndRenderStok();
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      btn.disabled = false;
+  const wrapEl = document.getElementById(`switchWrap_${id}`);
+  const spinnerEl = document.getElementById(`spinner_${id}`);
+  const textEl = document.getElementById(`switchText_${id}`);
+  const cellEl = document.getElementById(`statusCell_${id}`);
+  const rowEl = document.getElementById(`stockRow_${id}`);
+
+  // Cegah klik berulang selama proses perubahan berlangsung & beri indikator loading sementara
+  inputEl.disabled = true;
+  if (wrapEl) wrapEl.classList.add('is-loading');
+  if (spinnerEl) spinnerEl.style.display = 'inline-block';
+
+  try {
+    const res = await fetch(stokUrl('status', id), {
+      method:  'POST',
+      headers: stokHeaders(),
+      body:    JSON.stringify({ is_active: targetState }),
+    });
+
+    const result = await res.json();
+
+    if (!res.ok) {
+      throw new Error(result.message || 'Gagal mengubah status bahan.');
     }
-  };
-}
 
-function closeDeactivateModal() {
-  document.getElementById('deactivateModal').style.display = 'none';
+    // Perubahan status berhasil dan langsung tersimpan ke database
+    item.is_active = targetState;
+
+    // Update teks switch
+    if (textEl) {
+      textEl.textContent = targetState ? 'Aktif' : 'Nonaktif';
+      textEl.className = `switch-text ${targetState ? 'text-active' : 'text-inactive'}`;
+    }
+
+    // Update gaya visual baris tabel
+    if (rowEl) {
+      if (targetState) {
+        rowEl.classList.remove('row-dimmed');
+      } else {
+        rowEl.classList.add('row-dimmed');
+      }
+    }
+
+    // Update tampilan status kolom tabel
+    if (cellEl) {
+      const stock = Number(item.current_stock) || 0;
+      const minSt = Number(item.minimum_stock) || 0;
+      const stockStatus = stock <= 0
+        ? '<span class="stock-status-badge badge-danger">Habis</span>'
+        : stock <= minSt
+          ? '<span class="stock-status-badge badge-warning">Menipis</span>'
+          : '<span class="stock-status-badge badge-success">Aman</span>';
+
+      const activeBadge = targetState
+        ? `<span class="status-pill status-pill-active" id="statusBadge_${id}">Aktif</span>`
+        : `<span class="status-pill status-pill-inactive" id="statusBadge_${id}">Nonaktif</span>`;
+
+      cellEl.innerHTML = `<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+        ${activeBadge}
+        ${targetState ? stockStatus : ''}
+      </div>`;
+    }
+
+    showStokMessage(result.message || `Bahan berhasil ${targetState ? 'diaktifkan' : 'dinonaktifkan'}.`);
+
+  } catch (err) {
+    // Jika permintaan gagal, kembalikan posisi switch ke status sebelumnya dan tampilkan pesan kesalahan
+    inputEl.checked = previousState;
+    if (textEl) {
+      textEl.textContent = previousState ? 'Aktif' : 'Nonaktif';
+      textEl.className = `switch-text ${previousState ? 'text-active' : 'text-inactive'}`;
+    }
+    showStokMessage(err.message || 'Gagal mengubah status bahan baku.', true);
+  } finally {
+    // Selesai: hilangkan indikator loading & aktifkan kembali kontrol
+    if (spinnerEl) spinnerEl.style.display = 'none';
+    if (wrapEl) wrapEl.classList.remove('is-loading');
+    inputEl.disabled = false;
+  }
 }
 
 // ─── Stok Masuk ───────────────────────────────────────────────────────────────

@@ -24,13 +24,11 @@ class StockItemController extends Controller
     }
 
     /**
-     * JSON: daftar bahan baku aktif untuk tabel utama.
+     * JSON: daftar seluruh bahan baku untuk tabel utama.
      */
     public function data()
     {
-        $items = StockItem::where('is_active', true)
-            ->orderBy('name')
-            ->get();
+        $items = StockItem::orderBy('name')->get();
 
         return response()->json($items);
     }
@@ -81,7 +79,7 @@ class StockItemController extends Controller
     {
         $validated = $request->validate([
             'name'          => 'required|string|max:35',
-            'unit'          => 'required|string|max:15',
+            'unit'          => 'required|in:gram,liter,pcs',
             'minimum_stock' => 'required|integer|min:0',
             'initial_stock' => 'required|integer|min:0',
             'description'   => 'nullable|string|max:150',
@@ -125,7 +123,7 @@ class StockItemController extends Controller
     {
         $validated = $request->validate([
             'name'          => 'required|string|max:35',
-            'unit'          => 'required|string|max:15',
+            'unit'          => 'required|in:gram,liter,pcs',
             'minimum_stock' => 'required|integer|min:0',
             'description'   => 'nullable|string|max:150',
         ]);
@@ -139,6 +137,28 @@ class StockItemController extends Controller
     }
 
     /**
+     * Ubah status aktif/nonaktif bahan baku (via Switch toggle).
+     */
+    public function toggleStatus(Request $request, StockItem $stockItem)
+    {
+        $validated = $request->validate([
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $newStatus = array_key_exists('is_active', $validated)
+            ? (bool) $validated['is_active']
+            : ! $stockItem->is_active;
+
+        $stockItem->update(['is_active' => $newStatus]);
+
+        return response()->json([
+            'message'   => $newStatus ? 'Bahan baku berhasil diaktifkan.' : 'Bahan baku berhasil dinonaktifkan.',
+            'is_active' => (bool) $stockItem->is_active,
+            'item'      => $stockItem->fresh(),
+        ]);
+    }
+
+    /**
      * Nonaktifkan bahan baku (soft-deactivate).
      * Data tidak dihapus agar relasi resep/pergerakan tetap utuh.
      */
@@ -147,7 +167,9 @@ class StockItemController extends Controller
         $stockItem->update(['is_active' => false]);
 
         return response()->json([
-            'message' => 'Bahan baku berhasil dinonaktifkan.',
+            'message'   => 'Bahan baku berhasil dinonaktifkan.',
+            'is_active' => false,
+            'item'      => $stockItem->fresh(),
         ]);
     }
 

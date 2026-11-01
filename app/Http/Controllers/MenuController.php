@@ -321,6 +321,23 @@ class MenuController extends Controller
             ], 422);
         }
 
+        // Bahan baku yang dinonaktifkan tidak dapat dipilih untuk resep baru
+        $existingStockIds = MenuIngredient::where('menus_id_menu', $menu->id_menu)
+            ->pluck('stock_items_id_stock_item')
+            ->toArray();
+
+        foreach ($ingredientsData as $item) {
+            if (! in_array($item['id_stock_item'], $existingStockIds)) {
+                $stockItem = StockItem::find($item['id_stock_item']);
+                if (! $stockItem || ! $stockItem->is_active) {
+                    $name = $stockItem ? $stockItem->name : 'Bahan baku';
+                    return response()->json([
+                        'message' => "Bahan baku '{$name}' sudah nonaktif dan tidak dapat dipilih untuk resep baru.",
+                    ], 422);
+                }
+            }
+        }
+
         DB::transaction(function () use ($menu, $ingredientsData) {
             // Hapus resep lama menu ini (tanpa mengubah stok barang)
             MenuIngredient::where('menus_id_menu', $menu->id_menu)->delete();

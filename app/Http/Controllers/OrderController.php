@@ -47,6 +47,14 @@ class OrderController extends Controller
             }
 
             foreach ($menu->ingredients as $ingredient) {
+                $stockItem = $ingredient->stockItem;
+                if (! $stockItem || ! $stockItem->is_active) {
+                    $itemName = $stockItem ? $stockItem->name : 'Bahan baku';
+                    return response()->json([
+                        'message' => "Bahan baku '{$itemName}' sedang nonaktif, menu '{$menu->name}' tidak dapat dipesan.",
+                    ], 422);
+                }
+
                 $stockId = $ingredient->stock_items_id_stock_item;
                 $needed = (float) $ingredient->quantity_required * (int) $item['qty'];
 
@@ -217,13 +225,15 @@ class OrderController extends Controller
                     $stockItem = $stockItems->get($stockId);
                     $avail = (float) ($stockItem?->current_stock ?? 0);
 
-                    if (! $stockItem || $avail < $neededQty) {
+                    if (! $stockItem || ! $stockItem->is_active || $avail < $neededQty) {
                         $itemName = $stockItem ? $stockItem->name : "Bahan #{$stockId}";
                         $unit = $stockItem ? $stockItem->unit : '';
 
                         return [
                             'status' => 'stok_kurang',
-                            'message' => "Stok bahan baku '{$itemName}' tidak mencukupi untuk menyelesaikan transaksi (tersedia: {$avail} {$unit}, dibutuhkan: {$neededQty} {$unit}).",
+                            'message' => $stockItem && ! $stockItem->is_active
+                                ? "Bahan baku '{$itemName}' sudah dinonaktifkan. Transaksi tidak dapat diproses."
+                                : "Stok bahan baku '{$itemName}' tidak mencukupi untuk menyelesaikan transaksi (tersedia: {$avail} {$unit}, dibutuhkan: {$neededQty} {$unit}).",
                         ];
                     }
                 }
