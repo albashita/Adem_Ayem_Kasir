@@ -160,8 +160,13 @@ async function renderMenuAdmin() {
               <span style="display:none;font-size:22px;">🍽️</span>`
             : '<span style="font-size:22px;">🍽️</span>';
 
+          const isActive = Boolean(menu.is_active ?? 1);
+          const activeStatusBadge = isActive
+            ? '<span class="status-pill status-pill-active">Aktif</span>'
+            : '<span class="status-pill status-pill-inactive">Nonaktif</span>';
+
           return `
-            <tr>
+            <tr class="${isActive ? '' : 'row-dimmed'}">
               <td>${imageHTML}</td>
               <td style="font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: normal;">
                 ${escapeMenuHTML(menu.kode_menu || menu.code || ('MENU-' + String(menu.id_menu).padStart(3, '0')))}
@@ -173,6 +178,7 @@ async function renderMenuAdmin() {
                 </span>
               </td>
               <td>${rupiah(menu.price)}</td>
+              <td>${activeStatusBadge}</td>
               <td class="row-actions">
                 ${isOwner ? `
                   <button
@@ -195,11 +201,11 @@ async function renderMenuAdmin() {
             </tr>
           `;
         }).join('')
-      : '<tr><td colspan="6">Belum ada menu.</td></tr>';
+      : '<tr><td colspan="7">Belum ada menu.</td></tr>';
   } catch (error) {
     body.innerHTML = `
       <tr>
-        <td colspan="6">
+        <td colspan="7">
           Gagal memuat menu: ${escapeMenuHTML(error.message)}
         </td>
       </tr>

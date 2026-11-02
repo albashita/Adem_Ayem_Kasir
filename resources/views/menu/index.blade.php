@@ -36,13 +36,14 @@
                       <th>Nama</th>
                       <th>Kategori</th>
                       <th>Harga</th>
+                      <th>Status</th>
                       <th>Aksi</th>
                   </tr>
               </thead>
 
                 <tbody id="menuBody">
                     <tr>
-                        <td colspan="6">Memuat data menu...</td>
+                        <td colspan="7">Memuat data menu...</td>
                     </tr>
                 </tbody>
             </table>
@@ -301,6 +302,27 @@
     cursor: not-allowed;
     background: #94a3b8 !important;
     border-color: #94a3b8 !important;
+}
+.status-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.status-pill-active {
+    background: #dcfce7;
+    color: #166534;
+}
+.status-pill-inactive {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+}
+.row-dimmed {
+    opacity: 0.65;
 }
 </style>
 

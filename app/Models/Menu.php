@@ -50,6 +50,15 @@ class Menu extends Model
         );
     }
 
+    public function orderItems()
+    {
+        return $this->hasMany(
+            OrderItem::class,
+            'menus_id_menu',
+            'id_menu'
+        );
+    }
+
     public function stockItems()
     {
         return $this->belongsToMany(
