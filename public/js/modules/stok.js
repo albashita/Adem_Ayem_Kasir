@@ -305,10 +305,28 @@ async function saveInventoryItem() {
     result = await res.json();
 
     if (!res.ok) {
-      const msg = result.errors
-        ? Object.values(result.errors).flat().join('\n')
-        : (result.message || 'Terjadi kesalahan.');
-      errEl.textContent = msg;
+      const DUPLICATE_MSG = 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.';
+      let isDuplicate = false;
+
+      if (result.errors && result.errors.name) {
+        const nameErrors = Array.isArray(result.errors.name) ? result.errors.name : [result.errors.name];
+        if (nameErrors.some(err => typeof err === 'string' && (err.toLowerCase().includes('sudah terdaftar') || err.toLowerCase().includes('already been taken')))) {
+          isDuplicate = true;
+        }
+      } else if (result.message && (result.message.toLowerCase().includes('sudah terdaftar') || result.message.toLowerCase().includes('already been taken') || result.message.toLowerCase().includes('duplicate entry'))) {
+        isDuplicate = true;
+      }
+
+      if (isDuplicate) {
+        errEl.textContent = DUPLICATE_MSG;
+        alert(DUPLICATE_MSG);
+      } else {
+        const msg = result.errors
+          ? Object.values(result.errors).flat().join('\n')
+          : (result.message || 'Terjadi kesalahan.');
+        errEl.textContent = msg;
+        alert(msg);
+      }
       return;
     }
 

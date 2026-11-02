@@ -8,7 +8,7 @@
      data-menu-url="{{ route('kasir.menu-data') }}"
      data-stock-url="{{ route('kasir.stock-estimates') }}"
      data-order-url="{{ route('kasir.orders.store') }}"
-     data-qr-url="http://192.168.1.7:8000/qr-menu">
+     data-qr-url="http://10.70.3.166:8000/qr-menu">
     <div class="pos-products panel">
         <h3>Pesanan Pelanggan — Pilih Menu</h3>
         <div class="pos-toolbar">

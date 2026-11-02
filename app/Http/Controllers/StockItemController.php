@@ -7,6 +7,7 @@ use App\Models\StockMovement;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class StockItemController extends Controller
 {
@@ -77,14 +78,28 @@ class StockItemController extends Controller
      */
     public function store(Request $request)
     {
+        if ($request->has('name')) {
+            $request->merge(['name' => trim((string) $request->input('name'))]);
+        }
+
         $validated = $request->validate([
-            'name'          => 'required|string|max:35',
+            'name'          => [
+                'required',
+                'string',
+                'max:35',
+                Rule::unique('stock_items', 'name'),
+            ],
             'unit'          => 'required|in:gram,liter,pcs',
             'minimum_stock' => 'required|integer|min:0',
             'initial_stock' => 'required|integer|min:0',
             'description'   => 'nullable|string|max:150',
+        ], [
+            'name.unique'   => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
+            'name.required' => 'Nama bahan wajib diisi.',
+            'name.max'      => 'Nama bahan maksimal 35 karakter.',
         ]);
 
+        try {
         $item = DB::transaction(function () use ($validated) {
             $item = StockItem::create([
                 'name'          => $validated['name'],
@@ -113,6 +128,17 @@ class StockItemController extends Controller
             'message' => 'Bahan baku berhasil ditambahkan.',
             'item'    => $item,
         ], 201);
+        } catch (QueryException $e) {
+            if ($e->errorInfo[1] == 1062) {
+                return response()->json([
+                    'message' => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
+                    'errors'  => [
+                        'name' => ['Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.'],
+                    ],
+                ], 422);
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -121,19 +147,44 @@ class StockItemController extends Controller
      */
     public function update(Request $request, StockItem $stockItem)
     {
+        if ($request->has('name')) {
+            $request->merge(['name' => trim((string) $request->input('name'))]);
+        }
+
         $validated = $request->validate([
-            'name'          => 'required|string|max:35',
+            'name'          => [
+                'required',
+                'string',
+                'max:35',
+                Rule::unique('stock_items', 'name')->ignore($stockItem->id_stock_item, 'id_stock_item'),
+            ],
             'unit'          => 'required|in:gram,liter,pcs',
             'minimum_stock' => 'required|integer|min:0',
             'description'   => 'nullable|string|max:150',
+        ], [
+            'name.unique'   => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
+            'name.required' => 'Nama bahan wajib diisi.',
+            'name.max'      => 'Nama bahan maksimal 35 karakter.',
         ]);
 
+        try {
         $stockItem->update($validated);
 
         return response()->json([
             'message' => 'Bahan baku berhasil diperbarui.',
             'item'    => $stockItem->fresh(),
         ]);
+        } catch (QueryException $e) {
+            if ($e->errorInfo[1] == 1062) {
+                return response()->json([
+                    'message' => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
+                    'errors'  => [
+                        'name' => ['Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.'],
+                    ],
+                ], 422);
+            }
+            throw $e;
+        }
     }
 
     /**
