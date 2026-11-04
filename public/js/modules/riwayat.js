@@ -242,7 +242,8 @@ function histToTrx(o) {
     change: o.change ?? 0,
     kasir: (typeof currentUser === 'function' && currentUser()) ? currentUser().name : (typeof SERVER_USER !== 'undefined' ? SERVER_USER.name : 'Kasir'),
     customer: o.customer || 'Umum',
-    orderType: o.service_type || 'dine-in'
+    orderType: o.service_type || 'dine-in',
+    receiptUrl: o.receipt_url || ''
   };
 }
 
@@ -380,15 +381,49 @@ window.openPayOrder = openPayOrder;
 window.confirmPayOrder = confirmPayOrder;
 window.showOrderReceipt = showOrderReceipt;
 
-// Inisialisasi otomatis: tangani baik saat loading maupun saat readyState sudah complete/interactive
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    if (document.getElementById('riwayatPage')) {
-      loadHistory();
-    }
-  });
-} else {
-  if (document.getElementById('riwayatPage')) {
-    loadHistory();
-  }
-}
+// Cetak struk lewat iframe tersembunyi (hanya struk + QR yang tercetak)
+document.addEventListener('DOMContentLoaded', function () {
+  window.printLastReceipt = function () {
+    const struk = document.getElementById('receiptModalBody');
+    const qr = document.getElementById('fakeQr');
+    if (!struk) return;
+
+    const lama = document.getElementById('printFrame');
+    if (lama) lama.remove();
+
+    const f = document.createElement('iframe');
+    f.id = 'printFrame';
+    f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(f);
+
+    const doc = f.contentWindow.document;
+    doc.open();
+    doc.write(`<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Struk Pembayaran</title>
+<style>
+  @page { size: 80mm auto; margin: 0; }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:4mm; width:80mm; font-family:'Courier New',monospace; font-size:12px; color:#000; }
+  .rline { display:flex; justify-content:space-between; padding:1px 0; }
+  hr { border:none; border-top:1px dashed #000; margin:6px 0; }
+  .center { text-align:center; }
+  .qr { text-align:center; margin-top:10px; }
+  .qr img, .qr svg, .qr canvas { width:36mm; height:auto; }
+</style>
+</head>
+<body>
+  ${struk.innerHTML}
+  <div class="qr">${qr ? qr.innerHTML : ''}</div>
+</body>
+</html>`);
+    doc.close();
+
+    setTimeout(function () {
+      f.contentWindow.focus();
+      f.contentWindow.print();
+    }, 300);
+  };
+});

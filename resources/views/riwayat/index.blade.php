@@ -185,7 +185,6 @@
     <div class="receipt-onscreen" id="receiptModalBody"></div>
     <div id="fakeQr" style="text-align:center;margin:14px 0;"></div>
     <div class="form-row" style="margin-top:10px;">
-      <button class="btn btn-outline" style="flex:1;" onclick="sendWhatsApp()">Kirim via WhatsApp</button>
       <button class="btn btn-primary" style="flex:1;" onclick="printLastReceipt()">Cetak Struk</button>
     </div>
     <button class="btn btn-outline" style="width:100%;margin-top:8px;" onclick="closeReceiptModal()">Tutup</button>
@@ -200,4 +199,8 @@
     <button class="btn btn-primary" style="width:100%;" onclick="closeAlertModal()">OK</button>
   </div>
 </div>
+
+@push('scripts')
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+@endpush
 @endsection

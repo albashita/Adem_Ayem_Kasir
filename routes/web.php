@@ -9,6 +9,7 @@ use App\Http\Controllers\StockItemController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\ReceiptController;
 
 /*
 |--------------------------------------------------------------------------
@@ -75,6 +76,9 @@ Route::get('/qr-menu', [QrMenuController::class, 'index'])
 
 Route::get('/qr-menu/data', [QrMenuController::class, 'data'])
     ->name('qr-menu.data');
+
+Route::get('/struk/{token}', [ReceiptController::class, 'show'])
+    ->name('receipt.show');
 
 /*
 |--------------------------------------------------------------------------

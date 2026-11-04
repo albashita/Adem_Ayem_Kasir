@@ -64,7 +64,7 @@ async function loadPosMenu() {
 }
 
 /**
- * Endpoint polling / refresh estimasi stok terbaru tanpa me-reload seluruh katalog
+ * Refresh estimasi stok terbaru tanpa me-reload seluruh katalog
  */
 async function refreshStockEstimates() {
   const page = document.getElementById('kasirPage');
@@ -104,17 +104,20 @@ function renderPOS() {
   const catTabs = document.getElementById('posCatTabs');
   if (catTabs) {
     catTabs.innerHTML = cats.map(c => `
-      <button class="cat-tab ${c === currentPosCategory ? 'active' : ''}" onclick="selectPosCat('${c}')">
+      <button class="cat-tab ${c === currentPosCategory ? 'active' : ''}" data-cat="${escapeMenuHTML(c)}">
         ${c === 'semua' ? 'Semua' : escapeMenuHTML(c)}
       </button>
     `).join('');
+    catTabs.querySelectorAll('.cat-tab').forEach(b =>
+      b.addEventListener('click', () => selectPosCat(b.dataset.cat))
+    );
   }
 
   const search = (document.getElementById('posSearch')?.value || '').toLowerCase();
   const filtered = menu.filter(p =>
-    (currentPosCategory === 'semua' || p.category === currentPosCategory) &&
-    (p.name.toLowerCase().includes(search) || (p.code || '').toLowerCase().includes(search))
-  );
+  (currentPosCategory === 'semua' || p.category === currentPosCategory) &&
+  (p.name.toLowerCase().includes(search) || (p.kode_menu || p.code || '').toLowerCase().includes(search))
+);
 
   const grid = document.getElementById('posProductGrid');
   if (grid) {
@@ -134,13 +137,11 @@ function renderPOS() {
           }
 
           const cardClass = `prod-card ${isOutOfStock ? 'out-of-stock' : ''}`;
-          const clickHandler = isOutOfStock
-            ? `onclick="triggerAlertModal('Menu ${escapeMenuHTML(p.name)} sedang habis karena stok bahan baku tidak mencukupi.', 'Stok Habis')"`
-            : `onclick="addToCart('${p.id}')"`;
 
           return `
-            <div class="${cardClass}" ${clickHandler} title="${isOutOfStock ? 'Stok bahan baku habis' : 'Klik untuk tambah ke pesanan'}">
-              <div class="code">${escapeMenuHTML(p.code)}</div>
+            <div class="${cardClass}" onclick="addToCart('${p.id}')"
+                 title="${isOutOfStock ? 'Stok bahan baku habis' : 'Klik untuk tambah ke pesanan'}">
+              <div class="code">${escapeMenuHTML(p.kode_menu || p.code)}</div>
               <div class="name">${escapeMenuHTML(p.name)}</div>
               <div class="price">${rupiah(p.price)}</div>
               <div class="stock">${stockHtml}</div>
@@ -352,9 +353,8 @@ async function saveOrder() {
   }
 }
 
-// Inisialisasi otomatis jika berada di halaman kasir
+// loadPosMenu() sudah dipanggil oleh bootstrapPage() di core.js,
+// jadi di sini cukup menyalakan tombol tipe pesanan.
 document.addEventListener('DOMContentLoaded', () => {
-  if (document.getElementById('kasirPage')) {
-    loadPosMenu();
-  }
+  if (document.getElementById('kasirPage')) highlightOrderType();
 });

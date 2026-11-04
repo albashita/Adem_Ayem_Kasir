@@ -11,6 +11,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
@@ -140,6 +141,13 @@ class OrderController extends Controller
             ->limit(200)
             ->get();
 
+        // Beri token struk ke pesanan lama yang belum punya
+        foreach ($orders as $o) {
+            if (! $o->receipt_token) {
+                $o->forceFill(['receipt_token' => Str::random(16)])->save();
+            }
+        }
+
         return response()->json($orders->map(fn ($o) => [
             'id' => $o->id_order,
             'no' => $o->invoice_number,
@@ -154,6 +162,7 @@ class OrderController extends Controller
             'payment_method' => $o->payment?->payment_method,
             'amount_paid' => $o->payment?->amount,
             'paid_at' => $o->payment?->paid_at ? Carbon::parse($o->payment->paid_at)->toIso8601String() : null,
+            'receipt_url' => rtrim(config('app.url'), '/') . route('receipt.show', $o->receipt_token, false),
             'items' => $o->items->map(fn ($i) => [
                 'name' => $i->menu->name ?? '-',
                 'qty' => $i->quantity,

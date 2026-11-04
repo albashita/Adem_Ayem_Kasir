@@ -1,6 +1,6 @@
 /**
  * Adem Ayem - Payment & Receipt Module
- * Modal pembayaran, kalkulasi kembalian, cetak struk, WhatsApp, dan QR struk digital.
+ * Modal pembayaran, kalkulasi kembalian, cetak struk, salin link, dan QR struk digital.
  */
 
 let selectedPay = 'tunai';
@@ -87,13 +87,29 @@ function receiptRowsHTML(t) {
     ${t.payment === 'tunai' ? `<div class="rline"><span>Kembali</span><span>${rupiah(t.change)}</span></div>` : ''}`;
 }
 
-function receiptLinesText(t) {
-  const itemLines = (t.items || []).map(i => `${i.name} x${i.qty}  ${rupiah(i.price * i.qty)}`).join('\n');
-  let s = `ADEM AYEM\nNo. ${t.no}   ${new Date(t.date).toLocaleString('id-ID')}\nKasir: ${t.kasir || '-'}   ${t.orderType === 'takeaway' ? 'Bawa pulang' : 'Makan di tempat'}\nPelanggan: ${t.customer || '-'}\n---\n${itemLines}\n---\nSubtotal: ${rupiah(t.subtotal)}\n`;
-  if (t.discount > 0) s += `Diskon: -${rupiah(t.discount)}\n`;
-  s += `PB1 10%: ${rupiah(t.tax)}\nTOTAL: ${rupiah(t.total)}\nBayar: ${PAY_LABELS[t.payment] || t.payment}`;
-  if (t.payment === 'tunai') s += `\nTunai: ${rupiah(t.received)}\nKembali: ${rupiah(t.change)}`;
-  return s + `\nTerima kasih atas kunjungan Anda`;
+// QR asli: berisi link ke halaman struk digital publik.
+// Digambar manual dari data modul supaya selalu hitam di atas putih.
+function buildReceiptQr(t) {
+  if (typeof qrcode !== 'function' || !t || !t.receiptUrl) {
+    return '<div style="font-size:12px;color:var(--muted);">QR belum tersedia</div>';
+  }
+  const qr = qrcode(0, 'M');
+  qr.addData(t.receiptUrl);
+  qr.make();
+
+  const n = qr.getModuleCount();
+  const cell = 5, quiet = 2;
+  const size = (n + quiet * 2) * cell;
+  let rects = '';
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) {
+        rects += `<rect x="${(c + quiet) * cell}" y="${(r + quiet) * cell}" width="${cell}" height="${cell}" fill="#000"/>`;
+      }
+    }
+  }
+  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" shape-rendering="crispEdges" style="display:block;margin:0 auto;background:#fff;">`
+    + `<rect width="${size}" height="${size}" fill="#fff"/>${rects}</svg>`;
 }
 
 function openReceiptModal(t) {
@@ -107,42 +123,32 @@ function openReceiptModal(t) {
 
   const qrEl = document.getElementById('fakeQr');
   if (qrEl) {
-    qrEl.innerHTML = buildFakeQr(t.no || 'STRUK') + `<div style="font-size:11px;color:var(--muted);margin-top:4px;">scan untuk struk digital</div>`;
+    qrEl.innerHTML = buildReceiptQr(t) + `<div style="font-size:11px;color:var(--muted);margin-top:4px;">scan untuk struk digital</div>`;
   }
 
   const receiptModal = document.getElementById('receiptModal');
   if (receiptModal) receiptModal.style.display = 'flex';
 }
 
-function buildFakeQr(seed) {
-  const size = 21, cell = 6;
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  function rnd() { h = (h * 1664525 + 1013904223) >>> 0; return h; }
-  function inFinder(x, y, cx, cy) {
-    const lx = x - cx, ly = y - cy;
-    if (lx < 0 || lx > 6 || ly < 0 || ly > 6) return null;
-    if (lx === 0 || lx === 6 || ly === 0 || ly === 6) return true;
-    if (lx >= 2 && lx <= 4 && ly >= 2 && ly <= 4) return true;
-    return false;
+function copyReceiptLink(btn) {
+  if (!lastTrx || !lastTrx.receiptUrl) return;
+  const done = () => {
+    if (!btn) return;
+    const old = btn.textContent;
+    btn.textContent = 'Link tersalin';
+    setTimeout(() => { btn.textContent = old; }, 1500);
+  };
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(lastTrx.receiptUrl).then(done);
+    return;
   }
-  let rects = '';
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      let black = inFinder(x, y, 0, 0);
-      if (black === null) black = inFinder(x, y, size - 7, 0);
-      if (black === null) black = inFinder(x, y, 0, size - 7);
-      if (black === null) black = (rnd() % 2 === 0);
-      if (black) rects += `<rect x="${x * cell}" y="${y * cell}" width="${cell - 1}" height="${cell - 1}" fill="#1F2A24"/>`;
-    }
-  }
-  const total = size * cell;
-  return `<svg width="126" height="126" viewBox="0 0 ${total} ${total}" style="background:#fff;">${rects}</svg>`;
-}
-
-function sendWhatsApp() {
-  if (!lastTrx) return;
-  window.open('https://wa.me/?text=' + encodeURIComponent(receiptLinesText(lastTrx)), '_blank');
+  const ta = document.createElement('textarea');
+  ta.value = lastTrx.receiptUrl;
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  ta.remove();
+  done();
 }
 
 function printLastReceipt() {
@@ -154,7 +160,7 @@ function printLastReceipt() {
         <div class="center"><b>ADEM AYEM</b><br><span style="font-size:10.5px;">Jl. Contoh No. 1, Kotamu</span></div>
         <hr>${receiptRowsHTML(lastTrx)}<hr>
         <div class="center" style="margin-bottom:8px;">Terima kasih atas kunjungan Anda<br>Simpan struk ini sebagai bukti</div>
-        <div class="center">${buildFakeQr(lastTrx.no || 'STRUK')}</div>
+        <div class="center">${buildReceiptQr(lastTrx)}</div>
         <div class="center" style="font-size:10.5px;margin-top:4px;">scan untuk struk digital</div>
       </div>`;
   }

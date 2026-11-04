@@ -14,6 +14,12 @@ class Order extends Model
         'status', 'customer_name', 'order_type', 'service_type', 'users_id_user',
     ];
 
+    protected static function booted(): void
+{
+    static::creating(function ($order) {
+        $order->receipt_token = $order->receipt_token ?: \Illuminate\Support\Str::random(16);
+    });
+}
     public function items()
     {
         return $this->hasMany(OrderItem::class, 'orders_id_order', 'id_order');
