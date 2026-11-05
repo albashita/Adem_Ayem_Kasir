@@ -307,10 +307,8 @@ tbody tr:hover{background:#F7FAF8;}
     }
 }
 
-/* harga & aksi rata kanan */
-.menu-page th:nth-child(5),.menu-page td:nth-child(5),
-.menu-page th:nth-child(6),.menu-page td:nth-child(6){text-align:right;}
-.menu-page td:nth-child(5){font-weight:700;color:var(--brand);}
+/* Styling spesifik kolom tabel menu didefinisikan pada menu.blade.php agar proporsional */
+.menu-page td.col-harga{font-weight:700;color:var(--brand);}
 
 @media(max-width:1000px){
   .menu-page{grid-template-columns:1fr;}

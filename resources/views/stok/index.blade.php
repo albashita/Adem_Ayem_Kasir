@@ -19,92 +19,6 @@
 </div>
 
 <style>
-/* Switch Toggle Component */
-.switch-control-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    user-select: none;
-}
-.switch-control-wrap.is-loading {
-    pointer-events: none;
-    opacity: 0.7;
-}
-.switch-toggle {
-    position: relative;
-    display: inline-block;
-    width: 44px;
-    height: 24px;
-    margin: 0;
-    cursor: pointer;
-    vertical-align: middle;
-}
-.switch-toggle input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-    position: absolute;
-}
-.switch-toggle .slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #cbd5e1;
-    transition: 0.25s ease-in-out;
-    border-radius: 24px;
-}
-.switch-toggle .slider:before {
-    position: absolute;
-    content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    transition: 0.25s ease-in-out;
-    border-radius: 50%;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.25);
-}
-.switch-toggle input:checked + .slider {
-    background-color: #10b981;
-}
-.switch-toggle input:checked + .slider:before {
-    transform: translateX(20px);
-}
-.switch-toggle input:disabled + .slider {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-.switch-spinner {
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.4);
-    border-radius: 50%;
-    border-top-color: #2563eb;
-    animation: switchSpin 0.7s linear infinite;
-    z-index: 2;
-    pointer-events: none;
-}
-@keyframes switchSpin {
-    to { transform: rotate(360deg); }
-}
-.switch-text {
-    font-size: 13px;
-    font-weight: 600;
-}
-.switch-text.text-active {
-    color: #166534;
-}
-.switch-text.text-inactive {
-    color: #64748b;
-}
-
 /* Status Pills & Indicators */
 .status-pill {
     display: inline-block;
@@ -138,14 +52,6 @@
     color: #3E7A52;
 }
 
-.row-dimmed {
-    background-color: #fbfbfb;
-    color: #64748b;
-}
-.row-dimmed td:first-child strong {
-    color: #64748b;
-}
-
 .btn-action-edit {
     padding: 6px 12px;
     border: 1px solid #d5ded8;
@@ -160,6 +66,21 @@
 .btn-action-edit:hover {
     background: #f8fafc;
     border-color: #cbd5e1;
+}
+.btn-action-delete {
+    padding: 6px 12px;
+    border: 1px solid #fca5a5;
+    background: #fff5f5;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: #dc2626;
+    transition: all 0.2s;
+}
+.btn-action-delete:hover {
+    background: #fee2e2;
+    border-color: #ef4444;
 }
 </style>
 

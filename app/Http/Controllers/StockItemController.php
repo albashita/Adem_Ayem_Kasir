@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\StockItem;
 use App\Models\StockMovement;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -29,7 +30,9 @@ class StockItemController extends Controller
      */
     public function data()
     {
-        $items = StockItem::orderBy('name')->get();
+        $items = StockItem::where('is_active', true)
+            ->orderBy('name')
+            ->get();
 
         return response()->json($items);
     }
@@ -53,15 +56,15 @@ class StockItemController extends Controller
         }
 
         $movements = $query->get()->map(fn ($m) => [
-            'id'          => $m->id_stock_movements,
-            'date'        => $m->created_at?->toIso8601String(),
-            'item_name'   => $m->stockItem?->name ?? '-',
-            'unit'        => $m->stockItem?->unit ?? '-',
-            'type'        => $m->type,
-            'quantity'    => $m->quantity,
+            'id' => $m->id_stock_movements,
+            'date' => $m->created_at?->toIso8601String(),
+            'item_name' => $m->stockItem?->name ?? '-',
+            'unit' => $m->stockItem?->unit ?? '-',
+            'type' => $m->type,
+            'quantity' => $m->quantity,
             'source_type' => $m->source_type,
             'description' => $m->description ?? '',
-            'user_name'   => $m->user?->name ?? '-',
+            'user_name' => $m->user?->name ?? '-',
         ]);
 
         return response()->json($movements);
@@ -83,56 +86,56 @@ class StockItemController extends Controller
         }
 
         $validated = $request->validate([
-            'name'          => [
+            'name' => [
                 'required',
                 'string',
                 'max:35',
                 Rule::unique('stock_items', 'name'),
             ],
-            'unit'          => 'required|in:gram,liter,pcs',
+            'unit' => 'required|in:gram,liter,pcs',
             'minimum_stock' => 'required|integer|min:0',
             'initial_stock' => 'required|integer|min:0',
-            'description'   => 'nullable|string|max:150',
+            'description' => 'nullable|string|max:150',
         ], [
-            'name.unique'   => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
+            'name.unique' => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
             'name.required' => 'Nama bahan wajib diisi.',
-            'name.max'      => 'Nama bahan maksimal 35 karakter.',
+            'name.max' => 'Nama bahan maksimal 35 karakter.',
         ]);
 
         try {
-        $item = DB::transaction(function () use ($validated) {
-            $item = StockItem::create([
-                'name'          => $validated['name'],
-                'unit'          => $validated['unit'],
-                'current_stock' => $validated['initial_stock'],
-                'minimum_stock' => $validated['minimum_stock'],
-                'description'   => $validated['description'] ?? null,
-                'is_active'     => true,
-            ]);
-
-            if ($validated['initial_stock'] > 0) {
-                StockMovement::create([
-                    'type'                     => 'in',
-                    'quantity'                 => $validated['initial_stock'],
-                    'source_type'              => 'purchase',
-                    'description'              => 'Stok awal',
-                    'users_id_user'            => Auth::id(),
-                    'stock_items_id_stock_item' => $item->id_stock_item,
+            $item = DB::transaction(function () use ($validated) {
+                $item = StockItem::create([
+                    'name' => $validated['name'],
+                    'unit' => $validated['unit'],
+                    'current_stock' => $validated['initial_stock'],
+                    'minimum_stock' => $validated['minimum_stock'],
+                    'description' => $validated['description'] ?? null,
+                    'is_active' => true,
                 ]);
-            }
 
-            return $item;
-        });
+                if ($validated['initial_stock'] > 0) {
+                    StockMovement::create([
+                        'type' => 'in',
+                        'quantity' => $validated['initial_stock'],
+                        'source_type' => 'purchase',
+                        'description' => 'Stok awal',
+                        'users_id_user' => Auth::id(),
+                        'stock_items_id_stock_item' => $item->id_stock_item,
+                    ]);
+                }
 
-        return response()->json([
-            'message' => 'Bahan baku berhasil ditambahkan.',
-            'item'    => $item,
-        ], 201);
+                return $item;
+            });
+
+            return response()->json([
+                'message' => 'Bahan baku berhasil ditambahkan.',
+                'item' => $item,
+            ], 201);
         } catch (QueryException $e) {
             if ($e->errorInfo[1] == 1062) {
                 return response()->json([
                     'message' => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
-                    'errors'  => [
+                    'errors' => [
                         'name' => ['Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.'],
                     ],
                 ], 422);
@@ -152,33 +155,33 @@ class StockItemController extends Controller
         }
 
         $validated = $request->validate([
-            'name'          => [
+            'name' => [
                 'required',
                 'string',
                 'max:35',
                 Rule::unique('stock_items', 'name')->ignore($stockItem->id_stock_item, 'id_stock_item'),
             ],
-            'unit'          => 'required|in:gram,liter,pcs',
+            'unit' => 'required|in:gram,liter,pcs',
             'minimum_stock' => 'required|integer|min:0',
-            'description'   => 'nullable|string|max:150',
+            'description' => 'nullable|string|max:150',
         ], [
-            'name.unique'   => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
+            'name.unique' => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
             'name.required' => 'Nama bahan wajib diisi.',
-            'name.max'      => 'Nama bahan maksimal 35 karakter.',
+            'name.max' => 'Nama bahan maksimal 35 karakter.',
         ]);
 
         try {
-        $stockItem->update($validated);
+            $stockItem->update($validated);
 
-        return response()->json([
-            'message' => 'Bahan baku berhasil diperbarui.',
-            'item'    => $stockItem->fresh(),
-        ]);
+            return response()->json([
+                'message' => 'Bahan baku berhasil diperbarui.',
+                'item' => $stockItem->fresh(),
+            ]);
         } catch (QueryException $e) {
             if ($e->errorInfo[1] == 1062) {
                 return response()->json([
                     'message' => 'Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.',
-                    'errors'  => [
+                    'errors' => [
                         'name' => ['Nama bahan sudah terdaftar. Silakan gunakan nama bahan lain.'],
                     ],
                 ], 422);
@@ -203,24 +206,54 @@ class StockItemController extends Controller
         $stockItem->update(['is_active' => $newStatus]);
 
         return response()->json([
-            'message'   => $newStatus ? 'Bahan baku berhasil diaktifkan.' : 'Bahan baku berhasil dinonaktifkan.',
+            'message' => $newStatus ? 'Bahan baku berhasil diaktifkan.' : 'Bahan baku berhasil dinonaktifkan.',
             'is_active' => (bool) $stockItem->is_active,
-            'item'      => $stockItem->fresh(),
+            'item' => $stockItem->fresh(),
         ]);
     }
 
     /**
-     * Nonaktifkan bahan baku (soft-deactivate).
-     * Data tidak dihapus agar relasi resep/pergerakan tetap utuh.
+     * Hapus bahan baku.
+     *
+     * Aturan:
+     * - Bahan yang belum memiliki relasi apapun dapat dihapus secara permanen (hard delete).
+     * - Bahan yang memiliki riwayat pergerakan stok (stock_movements) atau relasi resep (menu_ingredients)
+     *   tidak boleh dihapus secara permanen agar relasi dan integritas data historis tidak rusak.
+     * - Sebagai gantinya, bahan diarsipkan (soft delete via is_active = false) sehingga:
+     *   1. Bahan tidak muncul kembali pada daftar bahan aktif.
+     *   2. Riwayat pergerakan stok (stock_movements) tetap tersimpan utuh dan dapat ditampilkan.
+     *   3. Foreign key database (RESTRICT) tidak terlanggar.
      */
-    public function destroy(StockItem $stockItem)
+    public function destroy(StockItem $stockItem): JsonResponse
     {
-        $stockItem->update(['is_active' => false]);
+        $hasMovements = $stockItem->movements()->exists();
+        $hasRecipe = $stockItem->menuIngredients()->exists();
+
+        // Jika bahan memiliki riwayat pergerakan stok atau relasi resep, gunakan mekanisme arsip (is_active = false)
+        if ($hasMovements || $hasRecipe) {
+            $stockItem->update(['is_active' => false]);
+
+            $reasons = [];
+            if ($hasMovements) {
+                $reasons[] = 'riwayat pergerakan stok';
+            }
+            if ($hasRecipe) {
+                $reasons[] = 'resep menu';
+            }
+            $reasonText = implode(' dan ', $reasons);
+
+            return response()->json([
+                'status' => 'archived',
+                'message' => "Bahan \"{$stockItem->name}\" berhasil dihapus dari daftar bahan aktif dan diarsipkan (karena memiliki {$reasonText} yang tetap tersimpan).",
+            ]);
+        }
+
+        // Jika bahan belum memiliki relasi apapun, dapat dihapus permanen
+        $stockItem->delete();
 
         return response()->json([
-            'message'   => 'Bahan baku berhasil dinonaktifkan.',
-            'is_active' => false,
-            'item'      => $stockItem->fresh(),
+            'status' => 'deleted',
+            'message' => "Bahan \"{$stockItem->name}\" berhasil dihapus secara permanen.",
         ]);
     }
 
@@ -237,7 +270,7 @@ class StockItemController extends Controller
     public function stockIn(Request $request, StockItem $stockItem)
     {
         $validated = $request->validate([
-            'quantity'    => 'required|integer|min:1',
+            'quantity' => 'required|integer|min:1',
             'source_type' => 'required|in:purchase,harvest,gift,other',
             'description' => 'nullable|string|max:150',
         ]);
@@ -246,17 +279,17 @@ class StockItemController extends Controller
             $stockItem->increment('current_stock', $validated['quantity']);
 
             StockMovement::create([
-                'type'                     => 'in',
-                'quantity'                 => $validated['quantity'],
-                'source_type'              => $validated['source_type'],
-                'description'              => $validated['description'] ?? null,
-                'users_id_user'            => Auth::id(),
+                'type' => 'in',
+                'quantity' => $validated['quantity'],
+                'source_type' => $validated['source_type'],
+                'description' => $validated['description'] ?? null,
+                'users_id_user' => Auth::id(),
                 'stock_items_id_stock_item' => $stockItem->id_stock_item,
             ]);
         });
 
         return response()->json([
-            'message'       => 'Stok berhasil ditambahkan.',
+            'message' => 'Stok berhasil ditambahkan.',
             'current_stock' => $stockItem->fresh()->current_stock,
         ]);
     }
@@ -268,13 +301,13 @@ class StockItemController extends Controller
     public function stockOut(Request $request, StockItem $stockItem)
     {
         $validated = $request->validate([
-            'quantity'    => 'required|integer|min:1',
+            'quantity' => 'required|integer|min:1',
             'description' => 'nullable|string|max:150',
         ]);
 
         if ($stockItem->current_stock < $validated['quantity']) {
             return response()->json([
-                'message' => 'Stok tidak mencukupi. Stok saat ini: ' . $stockItem->current_stock . ' ' . $stockItem->unit . '.',
+                'message' => 'Stok tidak mencukupi. Stok saat ini: '.$stockItem->current_stock.' '.$stockItem->unit.'.',
             ], 422);
         }
 
@@ -282,17 +315,17 @@ class StockItemController extends Controller
             $stockItem->decrement('current_stock', $validated['quantity']);
 
             StockMovement::create([
-                'type'                     => 'out',
-                'quantity'                 => $validated['quantity'],
-                'source_type'              => 'other',
-                'description'              => $validated['description'] ?? 'Koreksi stok',
-                'users_id_user'            => Auth::id(),
+                'type' => 'out',
+                'quantity' => $validated['quantity'],
+                'source_type' => 'other',
+                'description' => $validated['description'] ?? 'Koreksi stok',
+                'users_id_user' => Auth::id(),
                 'stock_items_id_stock_item' => $stockItem->id_stock_item,
             ]);
         });
 
         return response()->json([
-            'message'       => 'Stok berhasil dikurangi.',
+            'message' => 'Stok berhasil dikurangi.',
             'current_stock' => $stockItem->fresh()->current_stock,
         ]);
     }

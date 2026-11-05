@@ -5,11 +5,11 @@ use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\QrMenuController;
+use App\Http\Controllers\ReceiptController;
 use App\Http\Controllers\StockItemController;
 use App\Http\Controllers\UserController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use App\Http\Controllers\ReceiptController;
 
 /*
 |--------------------------------------------------------------------------
@@ -162,6 +162,7 @@ Route::middleware('auth')->group(function () use ($role) {
         Route::get('/stok/movements', [StockItemController::class, 'movements'])->name('stok.movements');
         Route::post('/stok', [StockItemController::class, 'store'])->name('stok.store');
         Route::put('/stok/{stockItem}', [StockItemController::class, 'update'])->name('stok.update');
+        Route::delete('/stok/{stockItem}', [StockItemController::class, 'destroy'])->name('stok.destroy');
         Route::post('/stok/{stockItem}/status', [StockItemController::class, 'toggleStatus'])->name('stok.status');
         Route::post('/stok/{stockItem}/deactivate', [StockItemController::class, 'destroy'])->name('stok.deactivate');
         Route::post('/stok/{stockItem}/stock-in', [StockItemController::class, 'stockIn'])->name('stok.stock-in');
@@ -193,7 +194,6 @@ Route::middleware('auth')->group(function () use ($role) {
         Route::post('/riwayat/{id}/pay', [OrderController::class, 'pay'])
             ->name('riwayat.pay');
     });
-    
 
     // Semua role yang sudah login
     Route::get('/laporan', function () {

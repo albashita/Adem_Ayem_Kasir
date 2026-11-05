@@ -123,11 +123,145 @@ function closeMenuModal() {
   editingMenuId = null;
 }
 
+// ID kategori Makanan sesuai database (id_categorie = 1)
+const CATEGORY_ID_MAKANAN = 1;
+
+function populateCategoryFilterOptions() {
+  const select = document.getElementById('filterCategory');
+  if (!select) return;
+
+  // Pertahankan opsi kategori jika sudah tersedia dari render Blade
+  if (select.options.length > 1) return;
+
+  // Fallback sinkronisasi kategori dinamis dari dbMenus
+  const categoriesMap = new Map();
+  dbMenus.forEach(menu => {
+    const catId = menu.categories_id_categorie ?? menu.category?.id_categorie;
+    const catName = menu.category?.name || `Kategori ${catId}`;
+    if (catId) {
+      categoriesMap.set(Number(catId), catName);
+    }
+  });
+
+  if (categoriesMap.size > 0) {
+    const currentVal = select.value;
+    select.innerHTML = '<option value="">Semua Kategori</option>';
+    categoriesMap.forEach((name, id) => {
+      const opt = document.createElement('option');
+      opt.value = String(id);
+      opt.textContent = name;
+      if (String(id) === String(currentVal)) {
+        opt.selected = true;
+      }
+      select.appendChild(opt);
+    });
+  }
+}
+
+function filterMenuByCategory() {
+  renderFilteredMenu();
+}
+
+function renderFilteredMenu() {
+  const body = document.getElementById('menuBody');
+  if (!body) return;
+
+  const isOwner = (typeof SERVER_USER !== 'undefined') && (
+    SERVER_USER.db_role === 'owner' ||
+    SERVER_USER.role === 'superadmin' ||
+    SERVER_USER.role === 'owner'
+  );
+
+  const filterSelect = document.getElementById('filterCategory');
+  const selectedCat = filterSelect ? filterSelect.value.trim() : '';
+
+  const searchInput = document.getElementById('menuSearch') || document.getElementById('searchMenu');
+  const keyword = searchInput ? searchInput.value.trim().toLowerCase() : '';
+
+  // 3 & 4 & 5. Filter berdasarkan id_categorie dan pencarian jika tersedia
+  const filtered = dbMenus.filter(menu => {
+    // Gunakan id_categorie sebagai dasar pencocokan filter, bukan nama kategori
+    const menuCatId = menu.categories_id_categorie ?? menu.category?.id_categorie;
+    const matchesCategory = !selectedCat || String(menuCatId) === String(selectedCat);
+
+    const matchesSearch = !keyword || (
+      (menu.name && menu.name.toLowerCase().includes(keyword)) ||
+      (menu.kode_menu && menu.kode_menu.toLowerCase().includes(keyword)) ||
+      (menu.code && menu.code.toLowerCase().includes(keyword)) ||
+      (menu.category?.name && menu.category.name.toLowerCase().includes(keyword))
+    );
+
+    return matchesCategory && matchesSearch;
+  });
+
+  // 7. Jika hasil filter kosong, tampilkan pesan bahwa tidak ada menu pada kategori tersebut
+  if (!filtered.length) {
+    const emptyMessage = selectedCat
+      ? 'Tidak ada menu pada kategori tersebut.'
+      : 'Belum ada menu.';
+    body.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:24px; color:#64748b;">${emptyMessage}</td></tr>`;
+    return;
+  }
+
+  body.innerHTML = filtered.map(menu => {
+    const imageUrl = menu.image_url || null;
+    const imageHTML = imageUrl
+      ? `<img
+          src="${escapeMenuHTML(imageUrl)}"
+          alt="${escapeMenuHTML(menu.name)}"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block';"
+        >
+        <span style="display:none;font-size:22px;">🍽️</span>`
+      : '<span style="font-size:22px;">🍽️</span>';
+
+    // Tombol Atur Resep hanya untuk kategori Makanan (id_categorie = 1)
+    const menuCatId = Number(menu.categories_id_categorie ?? menu.category?.id_categorie);
+    const isMakanan = menuCatId === CATEGORY_ID_MAKANAN;
+
+    return `
+      <tr>
+        <td class="col-foto">${imageHTML}</td>
+        <td class="col-kode" style="font-family: inherit; font-size: 13.5px; font-weight: 500; letter-spacing: normal;">
+          ${escapeMenuHTML(menu.kode_menu || menu.code || ('MENU-' + String(menu.id_menu).padStart(3, '0')))}
+        </td>
+        <td class="col-nama">${escapeMenuHTML(menu.name)}</td>
+        <td class="col-kategori">
+          <span class="tag tag-menu">
+            ${escapeMenuHTML(menu.category?.name || '-')}
+          </span>
+        </td>
+        <td class="col-harga">${rupiah(menu.price)}</td>
+        <td class="col-aksi">
+          <div class="row-actions">
+            ${(isOwner && isMakanan) ? `
+              <button
+                type="button"
+                class="btn-recipe"
+                onclick="openRecipeModal(${Number(menu.id_menu)})"
+                title="Atur resep bahan baku untuk menu ini"
+              >Atur Resep</button>
+            ` : ''}
+            <button
+              type="button"
+              onclick="openMenuModal(${Number(menu.id_menu)})"
+            >Ubah</button>
+            <button
+              type="button"
+              class="del"
+              onclick="deleteMenu(${Number(menu.id_menu)})"
+            >Hapus</button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
 async function renderMenuAdmin() {
   const body = document.getElementById('menuBody');
   if (!body || !document.getElementById('menuPage')) return;
 
-  body.innerHTML = '<tr><td colspan="6">Memuat data menu...</td></tr>';
+  body.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:#64748b;">Memuat data menu...</td></tr>';
 
   try {
     const response = await fetch(menuUrl('list'), {
@@ -140,78 +274,23 @@ async function renderMenuAdmin() {
     }
 
     dbMenus = Array.isArray(result) ? result : (result.menus || []);
-
-    const isOwner = (typeof SERVER_USER !== 'undefined') && (
-      SERVER_USER.db_role === 'owner' ||
-      SERVER_USER.role === 'superadmin' ||
-      SERVER_USER.role === 'owner'
-    );
-
-    body.innerHTML = dbMenus.length
-      ? dbMenus.map(menu => {
-          const imageUrl = menu.image_url || null;
-          const imageHTML = imageUrl
-            ? `<img
-                src="${escapeMenuHTML(imageUrl)}"
-                alt="${escapeMenuHTML(menu.name)}"
-                style="width:60px;height:50px;object-fit:cover;border-radius:8px;"
-                onerror="this.style.display='none';this.nextElementSibling.style.display='inline';"
-              >
-              <span style="display:none;font-size:22px;">🍽️</span>`
-            : '<span style="font-size:22px;">🍽️</span>';
-
-          const isActive = Boolean(menu.is_active ?? 1);
-          const activeStatusBadge = isActive
-            ? '<span class="status-pill status-pill-active">Aktif</span>'
-            : '<span class="status-pill status-pill-inactive">Nonaktif</span>';
-
-          return `
-            <tr class="${isActive ? '' : 'row-dimmed'}">
-              <td>${imageHTML}</td>
-              <td style="font-family: inherit; font-size: 14px; font-weight: 500; letter-spacing: normal;">
-                ${escapeMenuHTML(menu.kode_menu || menu.code || ('MENU-' + String(menu.id_menu).padStart(3, '0')))}
-              </td>
-              <td>${escapeMenuHTML(menu.name)}</td>
-              <td>
-                <span class="tag tag-menu">
-                  ${escapeMenuHTML(menu.category?.name || '-')}
-                </span>
-              </td>
-              <td>${rupiah(menu.price)}</td>
-              <td>${activeStatusBadge}</td>
-              <td class="row-actions">
-                ${isOwner ? `
-                  <button
-                    type="button"
-                    class="btn-recipe"
-                    onclick="openRecipeModal(${Number(menu.id_menu)})"
-                    title="Atur resep bahan baku untuk menu ini"
-                  >Atur Resep</button>
-                ` : ''}
-                <button
-                  type="button"
-                  onclick="openMenuModal(${Number(menu.id_menu)})"
-                >Ubah</button>
-                <button
-                  type="button"
-                  class="del"
-                  onclick="deleteMenu(${Number(menu.id_menu)})"
-                >Hapus</button>
-              </td>
-            </tr>
-          `;
-        }).join('')
-      : '<tr><td colspan="7">Belum ada menu.</td></tr>';
+    populateCategoryFilterOptions();
+    renderFilteredMenu();
   } catch (error) {
     body.innerHTML = `
       <tr>
-        <td colspan="7">
+        <td colspan="6" style="text-align:center; padding:20px; color:#dc2626;">
           Gagal memuat menu: ${escapeMenuHTML(error.message)}
         </td>
       </tr>
     `;
   }
 }
+
+// Global binding untuk inline handler HTML
+window.filterMenuByCategory = filterMenuByCategory;
+window.renderFilteredMenu = renderFilteredMenu;
+window.renderMenuAdmin = renderMenuAdmin;
 
 async function saveMenu(event) {
   if (event) event.preventDefault();
