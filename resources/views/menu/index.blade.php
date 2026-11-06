@@ -16,20 +16,7 @@
     <div class="panel">
         
         <div class="menu-header">
-            <div class="menu-header-left">
-                <h3>Daftar Menu</h3>
-                <div class="category-filter-wrap">
-                    <label for="filterCategory" class="filter-label">Kategori:</label>
-                    <select id="filterCategory" class="category-filter-select" onchange="filterMenuByCategory()">
-                        <option value="">Semua Kategori</option>
-                        @foreach ($categories as $category)
-                            <option value="{{ $category->id_categorie }}">
-                                {{ $category->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-            </div>
+            <h3>Daftar Menu</h3>
 
             <button type="button"
                     class="btn btn-primary btn-compact"
@@ -40,30 +27,23 @@
 
         <div id="menuMessage" style="margin:12px 0;"></div>
 
-        <div class="menu-table-responsive" style="overflow-x:auto; -webkit-overflow-scrolling:touch; width:100%;">
-            <table class="menu-table">
-                <colgroup>
-                    <col class="col-foto" style="width: 9%;">
-                    <col class="col-kode" style="width: 12%;">
-                    <col class="col-nama" style="width: 26%;">
-                    <col class="col-kategori" style="width: 15%;">
-                    <col class="col-harga" style="width: 15%;">
-                    <col class="col-aksi" style="width: 23%;">
-                </colgroup>
-                <thead>
-                    <tr>
-                        <th class="col-foto">Foto</th>
-                        <th class="col-kode">Kode</th>
-                        <th class="col-nama">Nama</th>
-                        <th class="col-kategori">Kategori</th>
-                        <th class="col-harga">Harga</th>
-                        <th class="col-aksi">Aksi</th>
-                    </tr>
-                </thead>
+        <div style="overflow-x:auto;">
+            <table>
+              <thead>
+                  <tr>
+                      <th>Foto</th>
+                      <th>Kode</th>
+                      <th>Nama</th>
+                      <th>Kategori</th>
+                      <th>Harga</th>
+                      <th>Status</th>
+                      <th>Aksi</th>
+                  </tr>
+              </thead>
 
                 <tbody id="menuBody">
                     <tr>
-                        <td colspan="6" style="text-align:center; padding:20px; color:#64748b;">Memuat data menu...</td>
+                        <td colspan="7">Memuat data menu...</td>
                     </tr>
                 </tbody>
             </table>
@@ -307,238 +287,42 @@
 </div>
 
 <style>
-/* Header Kelola Menu & Filter Kategori */
-.menu-page .menu-header {
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 18px;
-    flex-wrap: wrap;
-}
-
-.menu-header-left {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    flex-wrap: wrap;
-}
-
-.menu-header-left h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--ink, #1e293b);
-}
-
-.category-filter-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.category-filter-wrap .filter-label {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--muted, #64748b);
-    margin: 0;
-    white-space: nowrap;
-}
-
-.category-filter-select {
-    padding: 7px 12px;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--ink, #1e293b);
-    background-color: #fff;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
-    outline: none;
-    cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    min-width: 160px;
-}
-
-.category-filter-select:hover {
-    border-color: #94a3b8;
-}
-
-.category-filter-select:focus {
-    border-color: var(--brand, #3E7A52);
-    box-shadow: 0 0 0 2px rgba(62, 122, 82, 0.2);
-}
-
-/* Tabel Kelola Menu */
-.menu-table {
-    width: 100%;
-    min-width: 860px;
-    table-layout: fixed;
-    border-collapse: collapse;
-    font-size: 13.5px;
-}
-.menu-table th,
-.menu-table td {
-    padding: 12px 14px;
-    vertical-align: middle;
-    border-bottom: 1px solid var(--line, #e2e8f0);
-    box-sizing: border-box;
-}
-.menu-table th {
-    background: #F3F7F4;
-    color: var(--muted, #64748b);
-    font-weight: 600;
-    font-size: 12.5px;
-    border-bottom: 2px solid var(--line, #d5ded8);
-}
-
-/* 1. Foto: 9% - Lebar tetap, posisi tengah */
-.menu-page .menu-table th.col-foto,
-.menu-page .menu-table td.col-foto,
-.menu-table .col-foto {
-    width: 9% !important;
-    text-align: center !important;
-    padding: 8px 6px;
-}
-.menu-table td.col-foto img {
-    display: inline-block;
-    vertical-align: middle;
-    width: 52px;
-    height: 44px;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-}
-
-/* 2. Kode: 12% - Rata kiri sejajar header */
-.menu-page .menu-table th.col-kode,
-.menu-page .menu-table td.col-kode,
-.menu-table .col-kode {
-    width: 12% !important;
-    text-align: left !important;
-    font-weight: 500;
-    color: #475569;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-/* 3. Nama: 26% - Rata kiri sejajar header, tidak menyerap ruang berlebih, teks panjang wrap secara wajar */
-.menu-page .menu-table th.col-nama,
-.menu-page .menu-table td.col-nama,
-.menu-table .col-nama {
-    width: 26% !important;
-    text-align: left !important;
-    font-weight: 600;
-    color: var(--ink, #1e293b);
-}
-.menu-page .menu-table td.col-nama,
-.menu-table td.col-nama {
-    white-space: normal !important;
-    word-break: break-word;
-    overflow-wrap: break-word;
-    line-height: 1.4;
-}
-
-/* 4. Kategori: 15% - Rata kiri sejajar header */
-.menu-page .menu-table th.col-kategori,
-.menu-page .menu-table td.col-kategori,
-.menu-table .col-kategori {
-    width: 15% !important;
-    text-align: left !important;
-    white-space: nowrap;
-}
-
-/* 5. Harga: 15% - Rata kiri sejajar header, ada jarak visual cukup sebelum Aksi */
-.menu-page .menu-table th.col-harga,
-.menu-page .menu-table td.col-harga,
-.menu-table .col-harga {
-    width: 15% !important;
-    text-align: left !important;
-    font-weight: 700;
-    color: var(--brand, #3E7A52);
-    padding-right: 28px !important;
-    white-space: nowrap;
-}
-
-/* 6. Aksi: 23% - Rata kiri sejajar header, tombol aksi tersusun horizontal */
-.menu-page .menu-table th.col-aksi,
-.menu-page .menu-table td.col-aksi,
-.menu-table .col-aksi {
-    width: 23% !important;
-    text-align: left !important;
-    white-space: nowrap !important;
-    padding: 10px 10px;
-}
-
-.menu-table .row-actions {
-    display: inline-flex;
-    align-items: center;
-    flex-wrap: nowrap;
-    gap: 6px;
-    white-space: nowrap !important;
-    text-align: left !important;
-}
-.menu-table .row-actions button {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 11px;
-    font-size: 12px;
-    font-weight: 500;
-    border-radius: 6px;
-    border: 1px solid #d5ded8;
-    background: white;
-    cursor: pointer;
-    transition: background 0.15s, border-color 0.15s;
-    margin: 0;
-    vertical-align: middle;
-    white-space: nowrap !important;
-    flex-shrink: 0;
-}
-.menu-table .row-actions button:hover {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-}
-.menu-table .row-actions button.btn-recipe {
+.row-actions button.btn-recipe {
     color: #1d4ed8;
-    border: 1px solid #bfdbfe;
+    border: 1px solid #93c5fd;
     background: #eff6ff;
 }
-.menu-table .row-actions button.btn-recipe:hover {
+.row-actions button.btn-recipe:hover {
     background: #dbeafe;
     border-color: #3b82f6;
     color: #1e40af;
 }
-.menu-table .row-actions button.del {
-    color: #dc2626;
-    border-color: #fecaca;
-    background: #fff5f5;
-}
-.menu-table .row-actions button.del:hover {
-    background: #fee2e2;
-    border-color: #ef4444;
-}
-
 #btnSaveRecipe:disabled {
     opacity: 0.55;
     cursor: not-allowed;
     background: #94a3b8 !important;
     border-color: #94a3b8 !important;
 }
-
-@media (max-width: 640px) {
-    .menu-header-left {
-        width: 100%;
-        justify-content: space-between;
-    }
-    .category-filter-wrap {
-        flex: 1;
-        justify-content: flex-end;
-    }
-    .category-filter-select {
-        min-width: 140px;
-    }
+.status-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+.status-pill-active {
+    background: #dcfce7;
+    color: #166534;
+}
+.status-pill-inactive {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #cbd5e1;
+}
+.row-dimmed {
+    opacity: 0.65;
 }
 </style>
 

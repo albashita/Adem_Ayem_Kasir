@@ -14,8 +14,11 @@ const LSS = 'kasir_session';
 // Navigasi & Role
 const NAV = [
   { key: 'dashboard', label: 'Dashboard', roles: ['superadmin', 'administrator'] },
+  
   { key: 'pengguna', label: 'Pengguna & Akses', roles: ['superadmin'] },
   { key: 'menu', label: 'Kelola Menu', roles: ['superadmin'] },
+  { key: 'resep_produksi', label: 'Resep Produksi', roles: ['superadmin'] },
+  { key: 'produksi', label: 'Produksi Olahan', roles: ['administrator', 'superadmin'] },
   { key: 'stok', label: 'Stok Barang', roles: ['administrator'] },
   { key: 'kasir', label: 'Kasir', roles: ['kasir'] },
   { key: 'riwayat', label: 'Transaksi Pembayaran', roles: ['kasir'] },
@@ -31,6 +34,7 @@ const CAT_LABEL = {
   minuman: 'Minuman',
   gudang: 'Gudang'
 };
+
 
 // Inisialisasi data bawaan di LocalStorage jika belum ada
 function seedIfEmpty() {
@@ -152,8 +156,10 @@ function logoutUser() {
 const NAV_ICONS = {
   dashboard: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   pengguna:  '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="9" r="2.5"/><path d="M17 14.2c2.6.2 4.5 2 4.5 4.8"/>',
-  menu:      '<path d="M5 3v7a3 3 0 0 0 6 0V3M8 3v18"/><path d="M17 21V3c-2.2 1.2-3.5 3.8-3.5 7 0 1.7 1.4 3 3.5 3"/>',
-  stok:      '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  menu:           '<path d="M5 3v7a3 3 0 0 0 6 0V3M8 3v18"/><path d="M17 21V3c-2.2 1.2-3.5 3.8-3.5 7 0 1.7 1.4 3 3.5 3"/>',
+  resep_produksi: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/>',
+  produksi:       '<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="4"/>',
+  stok:           '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
   kasir:     '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.7a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/>',
   riwayat:   '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/>',
   laporan:   '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 17v-3M12 17v-5M15 17v-2"/>',
@@ -225,6 +231,12 @@ function bootstrapPage() {
   }
   if (PAGE_KEY === 'menu' && typeof renderMenuAdmin === 'function') {
     renderMenuAdmin();
+  }
+  if (PAGE_KEY === 'resep_produksi' && typeof renderResepProduksi === 'function') {
+    renderResepProduksi();
+  }
+  if (PAGE_KEY === 'produksi' && typeof renderProduksi === 'function') {
+    renderProduksi();
   }
   if (PAGE_KEY === 'stok' && typeof renderStok === 'function') {
     renderStok();
