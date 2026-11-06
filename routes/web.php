@@ -23,6 +23,10 @@ $role = fn (string ...$roles) => function (
     $user = $request->user();
 
     if (! $user) {
+        if ($request->is('menu')) {
+            return redirect()->route('qr.menu');
+        }
+
         return redirect()->route('login');
     }
 

@@ -1,36 +1,178 @@
-﻿/**
- * Adem Ayem - QR Code & Menu QR Module
- * Mengintegrasikan generator SVG QR Code (QRCode for JavaScript by Kazuhiko Arase)
- * dan modal QR Menu pelanggan.
- */
+﻿
 /* ===== QR MENU ===== */
-function qrSvg(text,px){
-  const qr=new QRLib(-1,1);
-  qr.addData(unescape(encodeURIComponent(text)));
-  qr.make();
-  const n=qr.getModuleCount(), q=3; let d='';
-  for(let r=0;r<n;r++) for(let c=0;c<n;c++) if(qr.isDark(r,c)) d+=`M${c+q} ${r+q}h1v1h-1z`;
-  const t=n+q*2;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 ${t} ${t}" shape-rendering="crispEdges"><rect width="${t}" height="${t}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+
+function menuQrUrl() {
+    const page = document.getElementById('kasirPage');
+    return (page && page.dataset.qrUrl) || '';
 }
-function menuQrUrl(){
-  const page = document.getElementById('kasirPage');
-  return (page && page.dataset.qrUrl) || (location.origin + '/qr-menu');
+
+/*
+ * Membuat SVG dari matriks QRLib.
+ * QRLib tidak menyediakan createSvgTag(), jadi SVG dibuat manual.
+ */
+function qrSvg(text, px = 260) {
+    if (typeof QRLib === 'undefined') {
+        throw new Error('QRLib tidak ditemukan.');
+    }
+
+    if (!text) {
+        throw new Error('URL QR kosong.');
+    }
+
+    const qr = new QRLib(-1, 1);
+
+    qr.addData(text);
+    qr.make();
+
+    const moduleCount = qr.getModuleCount();
+    const quietZone = 4;
+    const size = moduleCount + (quietZone * 2);
+
+    let path = '';
+
+    for (let row = 0; row < moduleCount; row++) {
+        for (let col = 0; col < moduleCount; col++) {
+            if (qr.isDark(row, col)) {
+                const x = col + quietZone;
+                const y = row + quietZone;
+
+                path += `M${x},${y}h1v1h-1z`;
+            }
+        }
+    }
+
+    return `
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 ${size} ${size}"
+            width="${px}"
+            height="${px}"
+            style="max-width:100%;height:auto;"
+            shape-rendering="crispEdges"
+        >
+            <rect width="${size}" height="${size}" fill="#ffffff"/>
+            <path d="${path}" fill="#000000"/>
+        </svg>
+    `;
 }
-function openMenuQr(){
-  const url = menuQrUrl();
-  let svg;
-  try{ svg = qrSvg(url, 260); }catch(e){ svg = '<div class="empty">Gagal membuat QR.</div>'; }
-  document.getElementById('menuQrBox').innerHTML = svg;
-  document.getElementById('menuQrText').textContent = url;
-  document.getElementById('menuQrModal').style.display = 'flex';
+
+/* ===== BUKA MODAL QR ===== */
+
+function openMenuQr() {
+    const url = menuQrUrl();
+    const qrBox = document.getElementById('menuQrBox');
+    const qrText = document.getElementById('menuQrText');
+    const modal = document.getElementById('menuQrModal');
+
+    if (!url) {
+        alert('URL QR Menu belum dikonfigurasi.');
+        return;
+    }
+
+    try {
+        qrBox.innerHTML = qrSvg(url, 260);
+        qrText.textContent = url;
+    } catch (error) {
+        console.error('Gagal membuat QR Menu:', error);
+
+        qrBox.innerHTML =
+            '<div class="empty">Gagal membuat QR Menu.</div>';
+
+        qrText.textContent = url;
+    }
+
+    modal.style.display = 'flex';
 }
-function closeMenuQr(){ document.getElementById('menuQrModal').style.display='none'; }
-function printMenuQr(){
-  document.getElementById('receiptPrint').innerHTML =
-    `<div class="receipt"><div class="center"><b>MENU ADEM AYEM</b><br>Scan untuk melihat daftar menu</div><div class="center" style="margin-top:10px;">${qrSvg(menuQrUrl(),240)}</div></div>`;
-  document.body.classList.add('print-receipt-mode');
-  window.print();
+
+/* ===== TUTUP MODAL QR ===== */
+
+function closeMenuQr() {
+    document.getElementById('menuQrModal').style.display = 'none';
+}
+
+/* ===== SALIN URL QR ===== */
+
+function copyMenuQrUrl(button) {
+    const url = menuQrUrl();
+
+    if (!url) {
+        alert('URL QR Menu tidak tersedia.');
+        return;
+    }
+
+    if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url)
+            .then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Tersalin!';
+
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 1500);
+            })
+            .catch(() => {
+                fallbackCopyQrUrl(url);
+            });
+    } else {
+        fallbackCopyQrUrl(url);
+    }
+}
+
+function fallbackCopyQrUrl(url) {
+    const textarea = document.createElement('textarea');
+
+    textarea.value = url;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+
+    document.body.appendChild(textarea);
+    textarea.select();
+
+    try {
+        document.execCommand('copy');
+        alert('URL QR berhasil disalin.');
+    } catch (error) {
+        console.error('Gagal menyalin URL:', error);
+        alert('Gagal menyalin URL.');
+    }
+
+    textarea.remove();
+}
+
+/* ===== CETAK QR MENU ===== */
+
+function printMenuQr() {
+    const url = menuQrUrl();
+    const printArea = document.getElementById('receiptPrint');
+
+    if (!url) {
+        alert('URL QR Menu tidak tersedia.');
+        return;
+    }
+
+    if (!printArea) {
+        alert('Area cetak tidak ditemukan.');
+        return;
+    }
+
+    try {
+        printArea.innerHTML = `
+            <div style="text-align:center;padding:20px;">
+                <h2>MENU ADEM AYEM</h2>
+                ${qrSvg(url, 240)}
+                <p>${url}</p>
+            </div>
+        `;
+
+        document.body.classList.add('print-receipt-mode');
+        window.print();
+
+    } catch (error) {
+        console.error('Gagal mencetak QR:', error);
+        alert('Gagal mencetak QR Menu.');
+    } finally {
+        document.body.classList.remove('print-receipt-mode');
+    }
 }
 
 /* ===== QR encoder: 'QRCode for JavaScript' (c) 2009 Kazuhiko Arase, MIT License ===== */

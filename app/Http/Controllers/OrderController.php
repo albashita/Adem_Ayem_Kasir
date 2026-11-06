@@ -136,17 +136,10 @@ class OrderController extends Controller
      */
     public function history()
     {
-        $orders = Order::with(['items.menu', 'payment'])
+        $orders = Order::with(['items.menu', 'payment', 'user'])
             ->orderByDesc('order_date')
             ->limit(200)
             ->get();
-
-        // Beri token struk ke pesanan lama yang belum punya
-        foreach ($orders as $o) {
-            if (! $o->receipt_token) {
-                $o->forceFill(['receipt_token' => Str::random(16)])->save();
-            }
-        }
 
         return response()->json($orders->map(fn ($o) => [
             'id' => $o->id_order,
@@ -162,7 +155,12 @@ class OrderController extends Controller
             'payment_method' => $o->payment?->payment_method,
             'amount_paid' => $o->payment?->amount,
             'paid_at' => $o->payment?->paid_at ? Carbon::parse($o->payment->paid_at)->toIso8601String() : null,
-            'receipt_url' => rtrim(config('app.url'), '/') . route('receipt.show', $o->receipt_token, false),
+            'receipt_url' => $o->receipt_token ? rtrim(config('app.url'), '/') . route('receipt.show', $o->receipt_token, false) : null,
+            'user' => $o->user ? [
+                'id' => $o->user->id_user,
+                'name' => $o->user->name,
+                'role' => $o->user->role,
+            ] : null,
             'items' => $o->items->map(fn ($i) => [
                 'name' => $i->menu->name ?? '-',
                 'qty' => $i->quantity,
@@ -275,7 +273,11 @@ class OrderController extends Controller
             ]);
 
             // 5. Ubah status pesanan menjadi completed
-            $order->update(['status' => 'completed']);
+            $orderUpdates = ['status' => 'completed'];
+            if (! $order->receipt_token) {
+                $orderUpdates['receipt_token'] = Str::random(16);
+            }
+            $order->update($orderUpdates);
 
             return [
                 'status' => 'ok',

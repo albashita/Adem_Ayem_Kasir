@@ -10,16 +10,20 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up(): void
-{
-    Schema::table('orders', function (Blueprint $table) {
-        $table->enum('service_type', ['dine-in', 'takeaway'])->default('dine-in')->after('order_type');
-    });
-}
+    {
+        Schema::table('orders', function (Blueprint $table) {
+            if (!Schema::hasColumn('orders', 'service_type')) {
+                $table->enum('service_type', ['dine-in', 'takeaway'])->default('dine-in')->after('order_type');
+            }
+        });
+    }
 
-public function down(): void
-{
-    Schema::table('orders', function (Blueprint $table) {
-        $table->dropColumn('service_type');
-    });
-}
+    public function down(): void
+    {
+        Schema::table('orders', function (Blueprint $table) {
+            if (Schema::hasColumn('orders', 'service_type')) {
+                $table->dropColumn('service_type');
+            }
+        });
+    }
 };
