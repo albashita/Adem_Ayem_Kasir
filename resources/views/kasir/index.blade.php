@@ -7,7 +7,7 @@
 @section('content')
 @php
     // Ubah IP dan port server di sini jika diperlukan.
-    $qrMenuUrl = 'http://192.168.1.10:8000/qr-menu';
+    $qrMenuUrl = 'http://192.168.1.136:8000/qr-menu';
 @endphp
 
 <div class="pos-layout" id="kasirPage"
