@@ -83,11 +83,6 @@
             <span id="cartDiscount">Rp 0</span>
         </div>
 
-        <div class="rline-mini">
-            <span>Pajak PB1 (10%)</span>
-            <span id="cartTax">Rp 0</span>
-        </div>
-
         <div class="total-row">
             <span>Total</span>
             <span id="cartTotal">Rp 0</span>

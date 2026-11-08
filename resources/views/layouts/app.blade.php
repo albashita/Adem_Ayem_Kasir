@@ -91,6 +91,7 @@
         const LOGOUT_URL = @json(route('logout'));
         const CSRF_TOKEN = @json(csrf_token());
         const PAGE_KEY = @json($pageKey);
+        const LOGO_URL = @json(asset('images/logo-adem-ayem.png'));
     </script>
 
     <!-- Modul JavaScript Aplikasi -->

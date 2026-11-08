@@ -180,9 +180,14 @@ function buildSidebar(role) {
   const nav = document.getElementById('sidebarNav');
   if (!nav) return;
 
+  const logoSrc = (typeof LOGO_URL !== 'undefined') ? LOGO_URL : '/images/logo-adem-ayem.png';
+  const logoHtml =
+    '<div class="sidebar-logo-wrap">' +
+      '<img src="' + escapeMenuHTML(logoSrc) + '" alt="Logo Adem Ayem" class="sidebar-logo" onerror="this.style.display=\'none\';">' +
+    '</div>';
+
   nav.innerHTML =
-    '<div class="brand-top">DEPOT YU SRI</div>' +
-    '<div class="brand">Adem Ayem</div>' +
+    logoHtml +
     '<div class="rolechip" id="roleChip">' + escapeMenuHTML(ROLE_LABEL[role] || role) + '</div>';
 
   NAV.filter(n => n.roles.includes(role)).forEach(n => {

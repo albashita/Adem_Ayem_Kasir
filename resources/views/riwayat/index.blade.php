@@ -115,10 +115,6 @@
         <span>Diskon</span>
         <span id="payBillDiscount" style="color:var(--danger);">- Rp 0</span>
       </div>
-      <div class="pay-bill-row">
-        <span>Pajak PB1 (10%)</span>
-        <span id="payBillTax">Rp 0</span>
-      </div>
       <div class="pay-bill-row total-highlight">
         <span>Total Pembayaran</span>
         <b id="payModalTotal">Rp 0</b>

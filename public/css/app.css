@@ -42,11 +42,7 @@ input,select,button{font-family:inherit;}
   width:100%;max-width:360px;
 }
 .login-card::before{
-  content:"";position:absolute;
-  top:-31px;left:50%;transform:translateX(-50%);
-  width:120px;height:28px;
-  background:var(--kayu);
-  clip-path:var(--atap);
+  content:none;display:none;
 }
 .login-card h1{
   font-size:28px;font-weight:700;letter-spacing:-.3px;
@@ -117,8 +113,7 @@ input,select,button{font-family:inherit;}
 .sidebar a{text-decoration:none;}
 .brand{display:flex;align-items:center;font-size:18px;font-weight:700;letter-spacing:-.2px;margin:0 8px 6px;}
 .brand::before{
-  content:"";width:24px;height:14px;margin-right:9px;flex-shrink:0;
-  background:var(--gold-light);clip-path:var(--atap);
+  content:none;display:none;
 }
 .brand span{color:inherit;}
 .rolechip{font-size:11px;color:#D6ECDD;margin:0 8px 18px;text-transform:capitalize;}

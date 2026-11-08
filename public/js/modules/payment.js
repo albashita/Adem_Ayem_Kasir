@@ -81,7 +81,6 @@ function receiptRowsHTML(t) {
     <hr>${itemsHtml}<hr>
     <div class="rline"><span>Subtotal</span><span>${rupiah(t.subtotal)}</span></div>
     ${t.discount > 0 ? `<div class="rline"><span>Diskon</span><span>- ${rupiah(t.discount)}</span></div>` : ''}
-    <div class="rline"><span>PB1 10%</span><span>${rupiah(t.tax)}</span></div>
     <div class="rline"><b>TOTAL</b><b>${rupiah(t.total)}</b></div>
     <div class="rline"><span>${PAY_LABELS[t.payment] || t.payment}</span><span>${t.payment === 'tunai' ? rupiah(t.received) : '-'}</span></div>
     ${t.payment === 'tunai' ? `<div class="rline"><span>Kembali</span><span>${rupiah(t.change)}</span></div>` : ''}`;

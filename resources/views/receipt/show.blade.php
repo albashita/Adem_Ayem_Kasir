@@ -49,7 +49,6 @@
   @if ($order->discount > 0)
     <div class="row"><span>Diskon</span><span>- Rp {{ number_format($order->discount, 0, ',', '.') }}</span></div>
   @endif
-  <div class="row"><span>Pajak PB1 (10%)</span><span>Rp {{ number_format($order->tax, 0, ',', '.') }}</span></div>
   <div class="row total"><span>Total</span><span>Rp {{ number_format($order->total, 0, ',', '.') }}</span></div>
   <div class="row"><span>Metode</span><span>{{ $methods[$order->payment?->payment_method] ?? '-' }}</span></div>
 

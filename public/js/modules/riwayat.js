@@ -284,9 +284,6 @@ function openPayOrder(id) {
     }
   }
 
-  const taxEl = document.getElementById('payBillTax');
-  if (taxEl) taxEl.textContent = rupiah(payingOrder.tax || 0);
-
   const totalEl = document.getElementById('payModalTotal');
   if (totalEl) totalEl.textContent = rupiah(payingOrder.total);
 

@@ -1,7 +1,7 @@
 /**
  * Adem Ayem - Kasir & POS Module
  * Katalog menu POS, keranjang belanja, pembatasan stok berbasis resep bahan baku,
- * perhitungan diskon & pajak PB1 10%, serta penyimpanan pesanan.
+ * perhitungan diskon, serta penyimpanan pesanan.
  */
 
 let cart = [];
@@ -9,7 +9,6 @@ let selectedOrderType = 'dine-in';
 let appliedDiscount = 0;
 let currentPosCategory = 'semua';
 let posMenu = [];
-const TAX_RATE = 0.10;
 
 // Helper modal alert dengan fallback alert()
 function triggerAlertModal(message, title = 'Perhatian') {
@@ -229,8 +228,7 @@ function cartSubtotal() {
 function computeTotals() {
   const sub = cartSubtotal();
   const disc = Math.min(appliedDiscount || 0, sub);
-  const tax = Math.round(sub * TAX_RATE);
-  return { sub, disc, tax, total: sub - disc + tax };
+  return { sub, disc, tax: 0, total: sub - disc };
 }
 
 function applyDiscount() {
@@ -266,9 +264,6 @@ function renderCart() {
   const t = computeTotals();
   const subEl = document.getElementById('cartSubtotal');
   if (subEl) subEl.textContent = rupiah(t.sub);
-
-  const taxEl = document.getElementById('cartTax');
-  if (taxEl) taxEl.textContent = rupiah(t.tax);
 
   const totalEl = document.getElementById('cartTotal');
   if (totalEl) totalEl.textContent = rupiah(t.total);

@@ -13,26 +13,34 @@
   box-sizing: border-box;
 }
 
-.shell .sidebar .brand-top {
+.shell .sidebar .sidebar-logo-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   padding: 0 10px;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.22em;
-  color: #F2D98A;
+  margin-bottom: 20px;
   text-align: center;
 }
 
-.shell .sidebar .brand {
-  padding: 0 10px;
-  margin: 2px 0 26px;
-  font-family: 'Kaushan Script', cursive;
-  font-size: 30px;
-  font-weight: 400;
-  line-height: 1.1;
-  color: #FFFFFF;
+.shell .sidebar .sidebar-logo {
+  width: 140px;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 640 / 426;
+  object-fit: contain;
   display: block;
-  white-space: nowrap;
-  text-align: center;
+  margin: 0 auto;
+}
+
+@media(max-width:720px){
+  .shell .sidebar .sidebar-logo-wrap {
+    display: none;
+  }
+}
+
+.shell .sidebar .brand-top,
+.shell .sidebar .brand {
+  display: none !important;
 }
 
 /* Hilangkan ikon/hiasan logo lama dari app.css */

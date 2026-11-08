@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 
 class OrderController extends Controller
 {
-    private const TAX_RATE = 0.10;
+    private const TAX_RATE = 0;
 
     /**
      * Simpan pesanan baru dari kasir dengan status pending.
@@ -96,8 +96,8 @@ class OrderController extends Controller
             }
 
             $discount = min((int) ($data['discount'] ?? 0), $subtotal);
-            $tax = (int) round($subtotal * self::TAX_RATE);
-            $total = $subtotal - $discount + $tax;
+            $tax = 0;
+            $total = $subtotal - $discount;
 
             $allDrinks = $menus->every(fn ($m) => strtolower($m->category->name ?? '') === 'minuman');
 

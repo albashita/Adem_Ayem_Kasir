@@ -17,10 +17,9 @@
         padding:26px 26px 34px; box-shadow:0 8px 30px rgba(20,60,40,.12); }
 
     /* Header merek */
-    .lg-brand { text-align:center; margin-bottom:34px; }
-    .lg-brand svg { display:block; margin:0 auto; width:66px; height:auto; }
-    .lg-depot { font-size:10px; letter-spacing:3.5px; font-weight:600; color:#8a6a12; text-transform:uppercase; margin-top:2px; }
-    .lg-name { font-family:'Kaushan Script',cursive; font-size:36px; line-height:1; margin-top:-2px; color:#2f7d4f; }
+    .lg-brand { text-align:center; margin-bottom:28px; }
+    .lg-logo-wrap { display:flex; justify-content:center; align-items:center; }
+    .lg-logo { width:100%; max-width:180px; height:auto; aspect-ratio:640/426; object-fit:contain; display:block; margin:0 auto; }
 
     .lg-alert { background:#fbe4df; color:#8a2a1c; border-radius:10px; padding:9px 12px;
         font-size:12.5px; font-weight:500; margin-bottom:14px; }
@@ -53,14 +52,11 @@
   <div class="lg-card">
 
     <div class="lg-brand">
-      <svg width="86" height="46" viewBox="0 0 150 78" fill="none" stroke="#2f7d4f" stroke-width="4" stroke-linejoin="round" aria-hidden="true">
-        <path d="M8 66L34 50H116L142 66Z"/>
-        <path d="M34 50L52 36H98L116 50"/>
-        <path d="M52 36L66 22H84L98 36"/>
-        <path d="M66 22L75 10L84 22"/>
-      </svg>
-      <div class="lg-depot">Depot Yu Sri</div>
-      <div class="lg-name">Adem Ayem</div>
+      <div class="lg-logo-wrap">
+        <img src="{{ asset('images/logo-adem-ayem.png') }}"
+             alt="Logo Adem Ayem"
+             class="lg-logo">
+      </div>
     </div>
 
     @if ($errors->any())
