@@ -20,6 +20,7 @@ const NAV = [
 
  
   { key: 'stok', label: 'Stok Barang', roles: ['administrator'] },
+  { key: 'pengeluaran', label: 'Pengeluaran', roles: ['administrator'] },
   { key: 'kasir', label: 'Kasir', roles: ['kasir'] },
   { key: 'riwayat', label: 'Transaksi Pembayaran', roles: ['kasir'] },
   { key: 'laporan', label: 'Laporan', roles: ['superadmin', 'administrator', 'kasir'] },
@@ -160,6 +161,7 @@ const NAV_ICONS = {
   resep_produksi: '<path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5Z"/><path d="M6 6h10M6 10h10M6 14h6"/>',
   produksi:       '<path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="4"/>',
   stok:           '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  pengeluaran:    '<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 9.5h20M6 15h3M14 15h4"/>',
   kasir:     '<circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l2.4 11.2a1.5 1.5 0 0 0 1.5 1.2h8.7a1.5 1.5 0 0 0 1.5-1.1L21 7H6"/>',
   riwayat:   '<rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M2.5 10h19M6.5 15h4"/>',
   laporan:   '<path d="M6 3h8l5 5v13H6z"/><path d="M14 3v5h5"/><path d="M9 17v-3M12 17v-5M15 17v-2"/>',
@@ -240,6 +242,9 @@ function bootstrapPage() {
   }
   if (PAGE_KEY === 'stok' && typeof renderStok === 'function') {
     renderStok();
+  }
+  if (PAGE_KEY === 'pengeluaran' && typeof renderPengeluaran === 'function') {
+    renderPengeluaran();
   }
   if (PAGE_KEY === 'kasir' && typeof loadPosMenu === 'function') {
     loadPosMenu();

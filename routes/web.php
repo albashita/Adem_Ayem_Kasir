@@ -1,6 +1,9 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ExpenseController;
+use App\Http\Controllers\LaporanController;
 use App\Http\Controllers\MenuController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProfileController;
@@ -109,11 +112,7 @@ Route::middleware('auth')->group(function () use ($role) {
 
     // Owner dan Admin
     Route::group(['middleware' => [$role('owner', 'admin')]], function () {
-        Route::get('/dashboard', function () {
-            return view('dashboard.index', [
-                'pageKey' => 'dashboard',
-            ]);
-        })->name('dashboard');
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     });
 
     // Owner saja
@@ -171,6 +170,13 @@ Route::middleware('auth')->group(function () use ($role) {
         Route::post('/stok/{stockItem}/deactivate', [StockItemController::class, 'destroy'])->name('stok.deactivate');
         Route::post('/stok/{stockItem}/stock-in', [StockItemController::class, 'stockIn'])->name('stok.stock-in');
         Route::post('/stok/{stockItem}/stock-out', [StockItemController::class, 'stockOut'])->name('stok.stock-out');
+
+        // Admin — Pengeluaran
+        Route::get('/pengeluaran', [ExpenseController::class, 'index'])->name('pengeluaran.index');
+        Route::get('/pengeluaran/data', [ExpenseController::class, 'data'])->name('pengeluaran.data');
+        Route::post('/pengeluaran', [ExpenseController::class, 'store'])->name('pengeluaran.store');
+        Route::put('/pengeluaran/{expense}', [ExpenseController::class, 'update'])->name('pengeluaran.update');
+        Route::delete('/pengeluaran/{expense}', [ExpenseController::class, 'destroy'])->name('pengeluaran.destroy');
     });
 
     // Kasir saja (Riwayat dipindahkan ke sini)
@@ -200,11 +206,8 @@ Route::middleware('auth')->group(function () use ($role) {
     });
 
     // Semua role yang sudah login
-    Route::get('/laporan', function () {
-        return view('laporan.index', [
-            'pageKey' => 'laporan',
-        ]);
-    })->name('laporan.index');
+    Route::get('/laporan', [LaporanController::class, 'index'])->name('laporan.index');
+    Route::get('/laporan/data', [LaporanController::class, 'data'])->name('laporan.data');
 
     Route::get('/profile', function () {
         return view('profile.index', [

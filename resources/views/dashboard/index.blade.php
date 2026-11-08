@@ -157,18 +157,22 @@
 <div id="tip" role="tooltip"></div>
 
 @push('scripts')
+@php
+    $ownerChartIncome = $chartIncome ?? [3100000, 3900000, 2800000, 4100000, 5200000, 4600000, 4250000];
+    $ownerChartExpense = $chartExpense ?? [1100000, 600000, 1400000, 900000, 1500000, 1200000, 1380000];
+    $ownerChartDays = $chartDays ?? ['Kam', 'Jum', 'Sab', 'Min', 'Sen', 'Sel', 'Rab'];
+@endphp
 <script>
-/* ============ DATA CONTOH (dummy, belum terhubung database) ============ */
 const IS_ADMIN = @json($isAdmin);
 
-const OWNER = {
+const OWNER = @json($ownerStats ?? null) || {
     today: { income: 4250000,  expense: 1380000,  trx: 86,   pending: 5,  pendingTotal: 310000,  methods: [52, 33, 15] },
     w:     { income: 27400000, expense: 9650000,  trx: 540,  pending: 12, pendingTotal: 720000,  methods: [49, 35, 16] },
     m:     { income: 98200000, expense: 36100000, trx: 1980, pending: 20, pendingTotal: 1250000, methods: [47, 36, 17] }
 };
 const OWNER_CHART = {
-    a: [3100000, 3900000, 2800000, 4100000, 5200000, 4600000, 4250000],
-    b: [1100000, 600000, 1400000, 900000, 1500000, 1200000, 1380000]
+    a: @json($ownerChartIncome),
+    b: @json($ownerChartExpense)
 };
 const BEST = [['Gurame bakar', 34], ['Nasi goreng', 29], ['Es teh', 27], ['Jamur krispi', 18], ['Ayam goreng', 15]];
 const ACTIVITY = [
@@ -177,7 +181,7 @@ const ACTIVITY = [
     ['Admin',   'Mencatat pembelian stok', '35 mnt lalu'],
     ['Owner',   'Mengubah harga menu', '1 jam lalu']
 ];
-const ADMIN = {
+const ADMIN = @json($adminStats ?? null) || {
     today: { buyTotal: 680000,   buyCount: 2,  masuk: 14,  keluar: 9 },
     w:     { buyTotal: 4920000,  buyCount: 11, masuk: 63,  keluar: 48 },
     m:     { buyTotal: 17350000, buyCount: 38, masuk: 241, keluar: 197 }
@@ -203,7 +207,7 @@ const MOVES = [
 
 const $ = id => document.getElementById(id);
 const rp = n => 'Rp ' + new Intl.NumberFormat('id-ID').format(n);
-const DAYS = ['Kam', 'Jum', 'Sab', 'Min', 'Sen', 'Sel', 'Rab'];
+const DAYS = @json($ownerChartDays);
 const PERIOD_TEXT = { today: 'hari ini', w: '7 hari terakhir', m: 'bulan ini' };
 const COLORS = ['#2f7d4f', '#e2b94a', '#7aa8c9'];
 const METHODS = ['Tunai', 'QRIS', 'Transfer'];
@@ -246,11 +250,12 @@ function renderKpis() {
             kpi('Barang keluar', d.keluar, 'pemakaian bahan · ' + pt, '#3b4350');
     } else {
         const d = OWNER[state.period];
+        const net = d.income - d.expense;
         $('kpis').innerHTML =
-            kpi('Pemasukan', rp(d.income), 'pesanan yang sudah dibayar', '#2f7d4f') +
-            kpi('Pengeluaran', rp(d.expense), 'pembelian stok', '#8a6a12') +
-            kpi('Laba kotor', rp(d.income - d.expense), 'pemasukan - pengeluaran') +
-            kpi('Transaksi', d.trx, 'rata-rata ' + rp(Math.round(d.income / d.trx))) +
+            kpi('Total Pendapatan', rp(d.income), 'pesanan yang sudah dibayar', '#2f7d4f') +
+            kpi('Total Pengeluaran', rp(d.expense), 'pengeluaran usaha', '#8a6a12') +
+            kpi('Pendapatan Bersih', rp(net), 'total pendapatan - total pengeluaran', net >= 0 ? '#1f5e3a' : '#dc2626') +
+            kpi('Transaksi', d.trx, 'rata-rata ' + rp(d.trx ? Math.round(d.income / d.trx) : 0)) +
             kpi('Menunggu bayar', d.pending, 'senilai ' + rp(d.pendingTotal));
     }
 }

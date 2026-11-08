@@ -1,54 +1,41 @@
 /**
  * Adem Ayem - Modul Laporan
  * Tiga tab: Stock, Pemasukan, Pengeluaran.
- * Tiap tab: filter -> satu tabel + baris total -> Cetak PDF / Unduh Excel.
+ * Integrasi Keuangan:
+ * Pendapatan Bersih = Total Pendapatan - Total Pengeluaran
+ * Data diambil langsung dari backend Laravel /laporan/data
  */
 
 // ===================== HELPER UMUM =====================
 
-// Tanggal lokal (YYYY-MM-DD), bukan UTC, supaya "hari ini" benar di WIB
 function localDateStr(d = new Date()) {
   const p = n => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
-// Tanggal lokal (YYYY-MM-DD) dari nilai tanggal apa pun (ISO UTC, timestamp, dsb.)
-function dayOf(value) {
-  const d = new Date(value);
-  return isNaN(d) ? String(value || '').slice(0, 10) : localDateStr(d);
-}
-
-// Tampilan tanggal: 28/10/2026 07.30
-function fmtDateTime(value) {
-  const d = new Date(value);
-  if (isNaN(d)) return '-';
-  const p = n => String(n).padStart(2, '0');
-  return `${p(d.getDate())}/${p(d.getMonth() + 1)}/${d.getFullYear()} ${p(d.getHours())}.${p(d.getMinutes())}`;
-}
-
-// 2026-10-28 -> 28/10/2026
 function fmtDay(iso) {
   if (!iso) return '';
-  const [y, m, d] = iso.split('-');
-  return `${d}/${m}/${y}`;
+  const parts = iso.split('-');
+  if (parts.length !== 3) return iso;
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
 }
 
 function periodText(from, to) {
   return `Periode ${from ? fmtDay(from) : 'awal'} – ${to ? fmtDay(to) : 'sekarang'}`;
 }
 
-// Normalisasi penamaan metode pembayaran
 function normalizePaymentName(value) {
   const p = String(value || '').toLowerCase().trim();
-  if (['tunai', 'cash', 'uang tunai'].includes(p)) return 'tunai';
+  if (['cash', 'tunai', 'uang tunai'].includes(p)) return 'cash';
   if (['qris', 'qr'].includes(p)) return 'qris';
   if (['transfer', 'transfer bank'].includes(p)) return 'transfer';
   return p;
 }
 
 function payLabel(m) {
-  return (typeof PAY_LABELS !== 'undefined' && PAY_LABELS[m]) ||
-    ({ tunai: 'Tunai', qris: 'QRIS', transfer: 'Transfer Bank' })[m] || m || '-';
+  const norm = normalizePaymentName(m);
+  const labels = { cash: 'Tunai', qris: 'QRIS', transfer: 'Transfer Bank' };
+  return labels[norm] || m || '-';
 }
 
 function catLabel(c) {
@@ -70,52 +57,23 @@ function setText(id, value) {
   if (el) el.textContent = value;
 }
 
-// ===================== TABEL GENERIK =====================
-// cols: [{ h: 'Judul', type?: 'money' | 'jenis', right?: true }]
+// ===================== STATE DATA LAPORAN =====================
 
-function fmtCell(col, v) {
-  if (v === null || v === undefined || v === '') return '-';
-  if (col.type === 'money') return rupiah(v);
-  return v;
-}
-
-function cellHTML(col, v) {
-  if (col.type === 'jenis') {
-    const out = String(v).toLowerCase() === 'keluar';
-    return `<span class="pill ${out ? 'pill-out' : 'pill-in'}">${out ? 'Keluar' : 'Masuk'}</span>`;
-  }
-  return escapeMenuHTML(String(fmtCell(col, v)));
-}
-
-// foot: { label, labelSpan, value, valueSpan, valueRight } -> satu baris total di bawah tabel
-function renderReportTable(tableId, cols, rows, emptyMsg, foot) {
-  const el = document.getElementById(tableId);
-  if (!el) return;
-
-  const head = `<thead><tr>${cols.map(c => `<th${c.right ? ' class="tr"' : ''}>${escapeMenuHTML(c.h)}</th>`).join('')}</tr></thead>`;
-
-  const body = rows.length
-    ? rows.map(r => `<tr>${cols.map((c, i) => `<td${c.right ? ' class="tr"' : ''}>${cellHTML(c, r[i])}</td>`).join('')}</tr>`).join('')
-    : `<tr><td colspan="${cols.length}" class="empty">${escapeMenuHTML(emptyMsg)}</td></tr>`;
-
-  const tfoot = foot
-    ? `<tfoot><tr><td colspan="${foot.labelSpan}">${escapeMenuHTML(foot.label)}</td><td colspan="${foot.valueSpan}"${foot.valueRight ? ' class="tr"' : ''}>${escapeMenuHTML(foot.value)}</td></tr></tfoot>`
-    : '';
-
-  el.innerHTML = head + `<tbody>${body}</tbody>` + tfoot;
-}
-
-// ===================== TAB & ROLE =====================
+let reportBackendData = {
+  total_pendapatan: 0,
+  total_pengeluaran: 0,
+  pendapatan_bersih: 0,
+  orders: [],
+  expenses: [],
+  stock_movements: []
+};
 
 const REPORT_TABS = ['stok', 'pemasukan', 'pengeluaran'];
-
-// Data terakhir yang dirender per tab, dipakai untuk export PDF / Excel
 const reportExport = {};
 
-// Tab yang boleh dilihat tiap role (sesuai analisis kebutuhan)
 const ROLE_TABS = {
   superadmin:    ['stok', 'pemasukan', 'pengeluaran'],
-  administrator: ['stok'],
+  administrator: ['stok', 'pemasukan', 'pengeluaran'],
   kasir:         ['pemasukan']
 };
 
@@ -129,7 +87,7 @@ function reportRole() {
 }
 
 function allowedTabs() {
-  return ROLE_TABS[reportRole()];
+  return ROLE_TABS[reportRole()] || ['pemasukan'];
 }
 
 function switchReportTab(name) {
@@ -148,7 +106,6 @@ function applyRoleTabs() {
   document.querySelectorAll('.report-tab').forEach(btn => {
     btn.style.display = allowed.includes(btn.dataset.tab) ? '' : 'none';
   });
-  // Kalau hanya ada satu tab, bar tab tidak perlu ditampilkan
   const bar = document.getElementById('reportTabBar');
   if (bar) bar.style.display = allowed.length > 1 ? '' : 'none';
   REPORT_TABS.forEach(t => {
@@ -159,209 +116,333 @@ function applyRoleTabs() {
   });
 }
 
-function renderAllReports() {
-  if (document.getElementById('tab-stok')) renderStockReport();
-  if (document.getElementById('tab-pemasukan')) renderReport();
-  if (document.getElementById('tab-pengeluaran')) renderExpenseReport();
+// Sinkronisasi tanggal dari tab pemasukan ke pengeluaran dan sebaliknya
+function syncDateToPengeluaran() {
+  const f = document.getElementById('repFrom')?.value;
+  const t = document.getElementById('repTo')?.value;
+  const sf = document.getElementById('repSpendFrom');
+  const st = document.getElementById('repSpendTo');
+  if (sf && f) sf.value = f;
+  if (st && t) st.value = t;
+  fetchReportData();
 }
 
-// Kembalikan filter ke default: tanggal = hari ini, metode / kategori / jenis = semua
-function resetReportFilters(tab) {
-  const today = localDateStr();
-  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
-  if (tab === 'stok') {
-    set('stSearch', ''); set('stCat', ''); set('stType', ''); set('stFrom', today); set('stTo', today);
-    renderStockReport();
-  } else if (tab === 'pemasukan') {
-    set('repSearch', ''); set('repFrom', today); set('repTo', today); set('repPaymentMethod', '');
-    renderReport();
-  } else if (tab === 'pengeluaran') {
-    set('spSearch', ''); set('repSpendFrom', today); set('repSpendTo', today);
-    renderExpenseReport();
+function syncDateToPemasukan() {
+  const sf = document.getElementById('repSpendFrom')?.value;
+  const st = document.getElementById('repSpendTo')?.value;
+  const f = document.getElementById('repFrom');
+  const t = document.getElementById('repTo');
+  if (f && sf) f.value = sf;
+  if (t && st) t.value = st;
+  fetchReportData();
+}
+
+// ===================== FETCH DATA BACKEND =====================
+
+async function fetchReportData() {
+  const page = document.getElementById('laporanPage');
+  const urlBase = page?.dataset.dataUrl || '/laporan/data';
+
+  // Ambil tanggal filter aktif
+  const from = document.getElementById('repFrom')?.value || document.getElementById('repSpendFrom')?.value || '';
+  const to = document.getElementById('repTo')?.value || document.getElementById('repSpendTo')?.value || '';
+
+  const url = new URL(urlBase, window.location.origin);
+  if (from) url.searchParams.set('from', from);
+  if (to)   url.searchParams.set('to', to);
+
+  try {
+    const res = await fetch(url.toString(), {
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    });
+
+    if (!res.ok) throw new Error('Gagal memuat data laporan.');
+    reportBackendData = await res.json();
+
+    updateFinancialSummary();
+    filterIncomeReport();
+    filterExpenseReport();
+    filterStockReport();
+
+  } catch (err) {
+    console.error('Error fetchReportData:', err);
   }
 }
 
-// ===================== TAB STOCK =====================
+function updateFinancialSummary() {
+  const inc = Number(reportBackendData.total_pendapatan || 0);
+  const exp = Number(reportBackendData.total_pengeluaran || 0);
+  const net = inc - exp;
 
-function renderStockReport() {
-  const inv = getInv();
-  const cat = document.getElementById('stCat')?.value || '';
-  const type = document.getElementById('stType')?.value || '';
-  const from = document.getElementById('stFrom')?.value || '';
-  const to = document.getElementById('stTo')?.value || '';
-  const q = searchQuery('stSearch');
+  setText('finSummaryIncome', rupiah(inc));
+  setText('finSummaryExpense', rupiah(exp));
 
-  const logs = getLog()
-    .filter(l => {
-      const d = dayOf(l.date);
-      if ((from && d < from) || (to && d > to)) return false;
-      if (type && l.type !== type) return false;
-      if (cat) {
-        const it = inv.find(x => x.id === l.itemId);
-        if (!it || it.category !== cat) return false;
-      }
-      if (q) {
-        const it = inv.find(x => x.id === l.itemId);
-        const hay = `${it ? it.name : ''} ${l.note || ''}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    })
-    .slice()
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const netEl = document.getElementById('finSummaryNet');
+  if (netEl) {
+    netEl.textContent = rupiah(net);
+    netEl.style.color = net >= 0 ? '#1f5e3a' : '#dc2626';
+  }
 
-  const masuk = logs.filter(l => l.type === 'masuk').length;
-  const keluar = logs.filter(l => l.type === 'keluar').length;
-
-  const cols = [
-    { h: 'Tanggal' }, { h: 'Nama Barang' }, { h: 'Kategori' }, { h: 'Jenis', type: 'jenis' },
-    { h: 'Jumlah', right: true }, { h: 'Satuan' }, { h: 'Keterangan' }
-  ];
-  const rows = logs.map(l => {
-    const it = inv.find(x => x.id === l.itemId);
-    return [
-      fmtDateTime(l.date),
-      it ? it.name : '-',
-      it ? catLabel(it.category) : '-',
-      l.type === 'masuk' ? 'Masuk' : 'Keluar',
-      l.qty,
-      it ? it.unit : '-',
-      l.note || '-'
-    ];
-  });
-
-  const catName = cat ? catLabel(cat) : 'Semua kategori';
-  const typeName = type ? (type === 'masuk' ? 'Masuk' : 'Keluar') : 'Masuk & keluar';
-  const sub = `${periodText(from, to)} · ${catName} · ${typeName} · ${logs.length} catatan${searchNote(q)}`;
-  const footValue = `${masuk} barang masuk · ${keluar} barang keluar`;
-  const empty = 'Tidak ada pergerakan stok pada rentang ini';
-
-  setText('stPeriod', sub);
-  renderReportTable('stTable', cols, rows, empty, { label: 'Total', labelSpan: 3, value: footValue, valueSpan: 4 });
-
-  reportExport.stok = {
-    title: 'Laporan Stock',
-    subtitle: sub,
-    summary: [
-      { label: 'Barang Masuk (catatan)', value: masuk },
-      { label: 'Barang Keluar (catatan)', value: keluar }
-    ],
-    tables: [{
-      title: 'Pergerakan Stok', cols, rows, empty,
-      foot: ['Total', '', '', footValue, '', '', '']
-    }]
-  };
+  setText('spTabTotalAmount', rupiah(exp));
+  setText('spTabCount', `${(reportBackendData.expenses || []).length} pengeluaran tercatat`);
 }
 
 // ===================== TAB PEMASUKAN =====================
 
-function renderReport() {
+function filterIncomeReport() {
   const from = document.getElementById('repFrom')?.value || '';
-  const to = document.getElementById('repTo')?.value || '';
+  const to   = document.getElementById('repTo')?.value || '';
   const method = (document.getElementById('repPaymentMethod')?.value || '').toLowerCase();
-  const q = searchQuery('repSearch');
+  const q    = searchQuery('repSearch');
 
-  const trx = getTrx()
-    .filter(t => {
-      const d = dayOf(t.date);
-      const payment = normalizePaymentName(t.payment);
-      const itemText = (t.items || []).map(i => i.name).join(' ').toLowerCase();
-      return (!from || d >= from) && (!to || d <= to) && (!method || payment === method) &&
-             (!q || itemText.includes(q));
-    })
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+  const orders = (reportBackendData.orders || []).filter(o => {
+    if (method && normalizePaymentName(o.payment) !== method) return false;
+    if (q) {
+      const itemsStr = (o.items || []).map(i => i.name).join(' ').toLowerCase();
+      const invoice = String(o.invoice_number || '').toLowerCase();
+      const customer = String(o.customer_name || '').toLowerCase();
+      if (!itemsStr.includes(q) && !invoice.includes(q) && !customer.includes(q)) return false;
+    }
+    return true;
+  });
 
-  const sales = trx.reduce((sum, t) => sum + Number(t.total || 0), 0);
+  const totalFiltered = orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+  const cols = [
+    { h: 'No.', width: '50px' },
+    { h: 'Tanggal' },
+    { h: 'No. Nota' },
+    { h: 'Pelanggan' },
+    { h: 'Item Pesanan' },
+    { h: 'Metode' },
+    { h: 'Total', type: 'money', right: true }
+  ];
 
-  const cols = [{ h: 'Tanggal' }, { h: 'Item' }, { h: 'Metode Bayar' }, { h: 'Total', type: 'money', right: true }];
-  const rows = trx.map(t => [
-    fmtDateTime(t.date),
-    (t.items || []).map(i => `${i.name} x${i.qty}`).join(', '),
-    payLabel(normalizePaymentName(t.payment)),
-    Number(t.total || 0)
+  const rows = orders.map((o, idx) => [
+    idx + 1,
+    o.formatted_date || (o.date ? o.date.slice(0, 16) : '-'),
+    o.invoice_number || '-',
+    o.customer_name || '-',
+    (o.items || []).map(i => `${i.name} x${i.qty}`).join(', ') || '-',
+    payLabel(o.payment),
+    Number(o.total || 0)
   ]);
 
   const methodName = method ? payLabel(method) : 'Semua metode';
-  const sub = `${periodText(from, to)} · ${methodName} · ${trx.length} transaksi${searchNote(q)}`;
-  const footLabel = `Total Pemasukan (${trx.length} transaksi)`;
-  const empty = 'Tidak ada transaksi pada rentang ini';
+  const sub = `${periodText(from, to)} · ${methodName} · ${orders.length} transaksi pesanan lunas${searchNote(q)}`;
+  const footLabel = `Total Pemasukan (${orders.length} transaksi)`;
+  const empty = 'Tidak ada transaksi lunas pada periode ini.';
 
   setText('repPeriod', sub);
-  renderReportTable('repTable', cols, rows, empty, {
-    label: footLabel, labelSpan: 3, value: rupiah(sales), valueSpan: 1, valueRight: true
+  renderGenericTable('repTable', cols, rows, empty, {
+    label: footLabel, labelSpan: 6, value: rupiah(totalFiltered), valueSpan: 1, valueRight: true
   });
 
   reportExport.pemasukan = {
-    title: 'Laporan Pemasukan',
+    title: 'Laporan Pemasukan (Pesanan Lunas)',
     subtitle: sub,
     summary: [
-      { label: 'Total Penjualan', value: sales, money: true },
-      { label: 'Jumlah Transaksi', value: trx.length }
+      { label: 'Total Pendapatan', value: reportBackendData.total_pendapatan, money: true },
+      { label: 'Total Pengeluaran', value: reportBackendData.total_pengeluaran, money: true },
+      { label: 'Pendapatan Bersih', value: reportBackendData.pendapatan_bersih, money: true },
+      { label: 'Jumlah Transaksi Terfilter', value: orders.length }
     ],
     tables: [{
-      title: 'Riwayat Transaksi', cols, rows, empty,
-      foot: [footLabel, '', '', sales]
+      title: 'Daftar Transaksi Lunas',
+      cols,
+      rows,
+      empty,
+      foot: [footLabel, '', '', '', '', '', totalFiltered]
     }]
   };
 }
 
 // ===================== TAB PENGELUARAN =====================
 
-function renderExpenseReport() {
+function filterExpenseReport() {
   const from = document.getElementById('repSpendFrom')?.value || '';
-  const to = document.getElementById('repSpendTo')?.value || '';
-  const q = searchQuery('spSearch');
+  const to   = document.getElementById('repSpendTo')?.value || '';
+  const cat  = document.getElementById('spCategory')?.value || '';
+  const q    = searchQuery('spSearch');
 
-  const inv = getInv();
-  const buys = getLog()
-    .filter(l => {
-      const d = dayOf(l.date);
-      return l.type === 'masuk' &&
-             Number(l.cost) > 0 &&
-             (!from || d >= from) &&
-             (!to || d <= to) &&
-             (!q || String((inv.find(x => x.id === l.itemId) || {}).name || '').toLowerCase().includes(q));
-    })
-    .slice()
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
-
-  const spend = buys.reduce((sum, l) => sum + Number(l.cost || 0), 0);
-
-  const cols = [
-    { h: 'Tanggal' }, { h: 'Barang' }, { h: 'Jumlah', right: true },
-    { h: 'Satuan' }, { h: 'Harga', type: 'money', right: true }
-  ];
-  const rows = buys.map(l => {
-    const it = inv.find(x => x.id === l.itemId);
-    return [fmtDateTime(l.date), it ? it.name : '-', l.qty, it ? it.unit : '-', Number(l.cost || 0)];
+  const expenses = (reportBackendData.expenses || []).filter(e => {
+    if (cat && e.category !== cat) return false;
+    if (q) {
+      const desc = String(e.description || '').toLowerCase();
+      const c = String(e.category || '').toLowerCase();
+      if (!desc.includes(q) && !c.includes(q)) return false;
+    }
+    return true;
   });
 
-  const sub = `${periodText(from, to)} · Pembelian stok · ${buys.length} pembelian${searchNote(q)}`;
-  const footLabel = `Total Pengeluaran (${buys.length} pembelian)`;
-  const empty = 'Belum ada pembelian stok pada rentang ini';
+  const totalFiltered = expenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+
+  const cols = [
+    { h: 'No.', width: '50px' },
+    { h: 'Tanggal' },
+    { h: 'Kategori Pengeluaran' },
+    { h: 'Keterangan' },
+    { h: 'Jumlah Pengeluaran', type: 'money', right: true }
+  ];
+
+  const rows = expenses.map((e, idx) => [
+    idx + 1,
+    e.formatted_date || e.expense_date,
+    e.category,
+    e.description || '-',
+    Number(e.amount || 0)
+  ]);
+
+  const catName = cat || 'Semua kategori';
+  const sub = `${periodText(from, to)} · ${catName} · ${expenses.length} pengeluaran${searchNote(q)}`;
+  const footLabel = `Total Pengeluaran (${expenses.length} catatan)`;
+  const empty = 'Belum ada data pengeluaran pada rentang ini.';
 
   setText('spPeriod', sub);
-  renderReportTable('spTable', cols, rows, empty, {
-    label: footLabel, labelSpan: 4, value: rupiah(spend), valueSpan: 1, valueRight: true
+  renderGenericTable('spTable', cols, rows, empty, {
+    label: footLabel, labelSpan: 4, value: rupiah(totalFiltered), valueSpan: 1, valueRight: true
   });
 
   reportExport.pengeluaran = {
-    title: 'Laporan Pengeluaran (Pembelian Stok)',
+    title: 'Laporan Pengeluaran Usaha',
     subtitle: sub,
     summary: [
-      { label: 'Total Pengeluaran', value: spend, money: true },
-      { label: 'Jumlah Pembelian', value: buys.length }
+      { label: 'Total Pengeluaran', value: totalFiltered, money: true },
+      { label: 'Jumlah Pengeluaran', value: expenses.length }
     ],
     tables: [{
-      title: 'Pembelian Stok', cols, rows, empty,
-      foot: [footLabel, '', '', '', spend]
+      title: 'Catatan Pengeluaran',
+      cols,
+      rows,
+      empty,
+      foot: [footLabel, '', '', '', totalFiltered]
     }]
   };
 }
 
+// ===================== TAB STOCK =====================
+
+function filterStockReport() {
+  const from = document.getElementById('stFrom')?.value || '';
+  const to   = document.getElementById('stTo')?.value || '';
+  const type = document.getElementById('stType')?.value || '';
+  const q    = searchQuery('stSearch');
+
+  const moves = (reportBackendData.stock_movements || []).filter(m => {
+    if (type && m.type !== type) return false;
+    if (q) {
+      const name = String(m.item_name || '').toLowerCase();
+      const note = String(m.note || '').toLowerCase();
+      if (!name.includes(q) && !note.includes(q)) return false;
+    }
+    return true;
+  });
+
+  const masuk = moves.filter(m => m.type === 'in').length;
+  const keluar = moves.filter(m => m.type === 'out').length;
+
+  const cols = [
+    { h: 'Tanggal' },
+    { h: 'Nama Barang' },
+    { h: 'Satuan' },
+    { h: 'Jenis', type: 'jenis' },
+    { h: 'Jumlah', right: true },
+    { h: 'Keterangan' },
+    { h: 'Petugas' }
+  ];
+
+  const rows = moves.map(m => [
+    m.date ? m.date.slice(0, 16).replace('T', ' ') : '-',
+    m.item_name || '-',
+    m.unit || '-',
+    m.type === 'in' ? 'Masuk' : 'Keluar',
+    m.qty,
+    m.note || '-',
+    m.user_name || '-'
+  ]);
+
+  const typeName = type ? (type === 'in' ? 'Masuk' : 'Keluar') : 'Masuk & keluar';
+  const sub = `${periodText(from, to)} · ${typeName} · ${moves.length} catatan${searchNote(q)}`;
+  const footValue = `${masuk} pergerakan masuk · ${keluar} pergerakan keluar`;
+  const empty = 'Tidak ada pergerakan stok pada periode ini.';
+
+  setText('stPeriod', sub);
+  renderGenericTable('stTable', cols, rows, empty, {
+    label: 'Total', labelSpan: 4, value: footValue, valueSpan: 3
+  });
+
+  reportExport.stok = {
+    title: 'Laporan Stok & Pergerakan Barang',
+    subtitle: sub,
+    summary: [
+      { label: 'Barang Masuk (kali)', value: masuk },
+      { label: 'Barang Keluar (kali)', value: keluar }
+    ],
+    tables: [{
+      title: 'Pergerakan Stok',
+      cols,
+      rows,
+      empty,
+      foot: ['Total', '', '', '', footValue, '', '']
+    }]
+  };
+}
+
+// ===================== TABLE RENDERER GENERIK =====================
+
+function fmtCellValue(col, v) {
+  if (v === null || v === undefined || v === '') return '-';
+  if (col.type === 'money') return rupiah(v);
+  return v;
+}
+
+function cellContentHTML(col, v) {
+  if (col.type === 'jenis') {
+    const isOut = String(v).toLowerCase() === 'keluar';
+    return `<span class="pill ${isOut ? 'pill-out' : 'pill-in'}">${isOut ? 'Keluar' : 'Masuk'}</span>`;
+  }
+  return escapeMenuHTML(String(fmtCellValue(col, v)));
+}
+
+function renderGenericTable(tableId, cols, rows, emptyMsg, foot) {
+  const el = document.getElementById(tableId);
+  if (!el) return;
+
+  const thead = `<thead><tr>${cols.map(c => `<th${c.right ? ' class="tr"' : ''}${c.width ? ` style="width:${c.width};"` : ''}>${escapeMenuHTML(c.h)}</th>`).join('')}</tr></thead>`;
+
+  const tbody = rows.length
+    ? rows.map(r => `<tr>${cols.map((c, i) => `<td${c.right ? ' class="tr"' : ''}>${cellContentHTML(c, r[i])}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${cols.length}" class="empty">${escapeMenuHTML(emptyMsg)}</td></tr>`;
+
+  const tfoot = foot
+    ? `<tfoot><tr><td colspan="${foot.labelSpan}">${escapeMenuHTML(foot.label)}</td><td colspan="${foot.valueSpan}"${foot.valueRight ? ' class="tr"' : ''}>${escapeMenuHTML(foot.value)}</td></tr></tfoot>`
+    : '';
+
+  el.innerHTML = thead + `<tbody>${tbody}</tbody>` + tfoot;
+}
+
+// ===================== RESET FILTER =====================
+
+function resetReportFilters(tab) {
+  const today = localDateStr();
+  const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+
+  if (tab === 'stok') {
+    setVal('stSearch', ''); setVal('stType', ''); setVal('stFrom', today); setVal('stTo', today);
+  } else if (tab === 'pemasukan') {
+    setVal('repSearch', ''); setVal('repFrom', today); setVal('repTo', today); setVal('repPaymentMethod', '');
+    setVal('repSpendFrom', today); setVal('repSpendTo', today);
+  } else if (tab === 'pengeluaran') {
+    setVal('spSearch', ''); setVal('spCategory', ''); setVal('repSpendFrom', today); setVal('repSpendTo', today);
+    setVal('repFrom', today); setVal('repTo', today);
+  }
+
+  fetchReportData();
+}
+
 // ===================== EXPORT PDF =====================
-// Membuka jendela cetak berisi hanya laporan tab yang aktif,
-// lalu pilih "Simpan sebagai PDF" di dialog cetak.
 
 function exportReportPdf(tab) {
   const d = reportExport[tab];
@@ -384,7 +465,7 @@ function exportReportPdf(tab) {
     <table>
       <thead><tr>${t.cols.map(c => `<th${c.right ? ' class="r"' : ''}>${esc(c.h)}</th>`).join('')}</tr></thead>
       <tbody>${t.rows.length
-        ? t.rows.map(r => `<tr>${t.cols.map((c, i) => `<td${c.right ? ' class="r"' : ''}>${esc(fmtCell(c, r[i]))}</td>`).join('')}</tr>`).join('')
+        ? t.rows.map(r => `<tr>${t.cols.map((c, i) => `<td${c.right ? ' class="r"' : ''}>${esc(fmtCellValue(c, r[i]))}</td>`).join('')}</tr>`).join('')
         : `<tr><td colspan="${t.cols.length}" class="empty">${esc(t.empty)}</td></tr>`}</tbody>
       ${foot}
     </table>`;
@@ -401,12 +482,12 @@ function exportReportPdf(tab) {
 <title>${esc(d.title)} - Adem Ayem</title>
 <style>
   body { font-family: Arial, Helvetica, sans-serif; color: #222; margin: 24px; font-size: 12px; }
-  h1 { margin: 0 0 2px; font-size: 20px; }
+  h1 { margin: 0 0 2px; font-size: 20px; color: #1f5e3a; }
   .sub { color: #666; margin-bottom: 4px; }
   .printed { color: #999; font-size: 11px; margin-bottom: 16px; }
   .sums { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 14px; }
   .s { border: 1px solid #ccc; border-radius: 6px; padding: 8px 14px; min-width: 130px; }
-  .s b { display: block; font-size: 16px; }
+  .s b { display: block; font-size: 16px; color: #1f5e3a; }
   .s span { color: #666; font-size: 11px; }
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
@@ -428,7 +509,6 @@ ${tables}
 }
 
 // ===================== EXPORT EXCEL =====================
-// Butuh library SheetJS (dimuat lewat <script> di index.blade.php).
 
 function exportReportExcel(tab) {
   const d = reportExport[tab];
@@ -471,13 +551,12 @@ function exportReportExcel(tab) {
 function initReportPage() {
   if (!document.getElementById('reportTabs')) return;
 
-  // Default: tanggal = hari ini, metode pembayaran / kategori / jenis = semua
   const today = localDateStr();
   ['repFrom', 'repTo', 'repSpendFrom', 'repSpendTo', 'stFrom', 'stTo'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = today;
   });
-  ['repPaymentMethod', 'stCat', 'stType', 'stSearch', 'repSearch', 'spSearch'].forEach(id => {
+  ['repPaymentMethod', 'stType', 'stSearch', 'repSearch', 'spSearch', 'spCategory'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -485,7 +564,18 @@ function initReportPage() {
   const first = allowedTabs().includes('pemasukan') ? 'pemasukan' : allowedTabs()[0];
   applyRoleTabs();
   switchReportTab(first);
-  renderAllReports();
+  fetchReportData();
 }
 
-// initReportPage() dipanggil dari bootstrapPage() di core.js
+// Expose fungsi ke window
+window.switchReportTab = switchReportTab;
+window.fetchReportData = fetchReportData;
+window.filterIncomeReport = filterIncomeReport;
+window.filterExpenseReport = filterExpenseReport;
+window.filterStockReport = filterStockReport;
+window.resetReportFilters = resetReportFilters;
+window.exportReportPdf = exportReportPdf;
+window.exportReportExcel = exportReportExcel;
+window.syncDateToPengeluaran = syncDateToPengeluaran;
+window.syncDateToPemasukan = syncDateToPemasukan;
+window.initReportPage = initReportPage;

@@ -18,8 +18,9 @@
         'dashboard'      => 'dashboard',
         'pengguna.index' => 'pengguna',
         'menu.index'     => 'menu',
-        'stok.index'     => 'stok',
-        'kasir.index'    => 'kasir',
+        'stok.index'        => 'stok',
+        'pengeluaran.index' => 'pengeluaran',
+        'kasir.index'       => 'kasir',
         'riwayat.index'  => 'riwayat',
         'laporan.index'  => 'laporan',
         'profile.index'  => 'profil',
@@ -70,6 +71,7 @@
             pengguna: @json(route('pengguna.index')),
             menu: @json(route('menu.index')),
             stok: @json(route('stok.index')),
+            pengeluaran: @json(route('pengeluaran.index')),
             kasir: @json(route('kasir.index')),
             riwayat: @json(url('/riwayat')),
             laporan: @json(route('laporan.index')),
@@ -98,6 +100,7 @@
     <script src="{{ asset('js/modules/users.js') }}"></script>
     <script src="{{ asset('js/modules/menu.js') }}"></script>
     <script src="{{ asset('js/modules/stok.js') }}"></script>
+    <script src="{{ asset('js/modules/pengeluaran.js') }}"></script>
     <script src="{{ asset('js/modules/kasir.js') }}"></script>
     <script src="{{ asset('js/modules/payment.js') }}"></script>
     <script src="{{ asset('js/modules/riwayat.js') }}"></script>
