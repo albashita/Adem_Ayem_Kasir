@@ -5,10 +5,11 @@
  */
 
 // ─── State ────────────────────────────────────────────────────────────────────
-let stokData      = [];   // hasil fetch /stok/data
-let movementsData = [];   // hasil fetch /stok/movements
-let editingStokId = null; // id_stock_item yang sedang diedit
-let stockInId     = null; // id_stock_item yang akan ditambah stoknya
+let stokData        = [];   // hasil fetch /stok/data
+let movementsData   = [];   // hasil fetch /stok/movements
+let editingStokId   = null; // id_stock_item yang sedang diedit
+let stockInId       = null; // id_stock_item yang akan ditambah stoknya
+let deletingStockId = null; // id_stock_item yang akan dihapus
 
 // ─── URL Helpers ──────────────────────────────────────────────────────────────
 function stokPage() {
@@ -326,41 +327,81 @@ async function saveInventoryItem() {
 // Pengelolaan bahan hanya melalui Ubah (Edit) dan Hapus.
 
 // ─── Hapus Bahan ──────────────────────────────────────────────────────────────
-async function confirmHapusBahan(id) {
+function confirmHapusBahan(id) {
   const item = stokData.find(i => Number(i.id_stock_item) === Number(id));
   if (!item) {
-    alert('Bahan tidak ditemukan.');
+    showStokMessage('Bahan tidak ditemukan.', true);
     return;
   }
 
-  if (!confirm(`Yakin ingin menghapus bahan "${item.name}"?`)) {
-    return;
+  deletingStockId = id;
+
+  const nameEl = document.getElementById('deleteStockItemName');
+  if (nameEl) {
+    nameEl.textContent = item.name;
   }
+
+  const modal = document.getElementById('deleteStokModal');
+  if (modal) {
+    modal.style.display = 'flex';
+  }
+}
+
+function closeDeleteStokModal() {
+  const modal = document.getElementById('deleteStokModal');
+  if (modal) {
+    modal.style.display = 'none';
+  }
+  deletingStockId = null;
+}
+
+async function executeDeleteStock() {
+  if (!deletingStockId) return;
+
+  const btnConfirm = document.getElementById('btnConfirmDeleteStock');
+  const btnCancel  = document.getElementById('btnCancelDeleteStock');
 
   try {
-    const res = await fetch(`${stokPage().dataset.destroyUrl}/${id}`, {
-      method: 'DELETE',
+    if (btnConfirm) {
+      btnConfirm.disabled = true;
+      btnConfirm.textContent = 'Menghapus...';
+    }
+    if (btnCancel) {
+      btnCancel.disabled = true;
+    }
+
+    const res = await fetch(`${stokPage().dataset.destroyUrl}/${deletingStockId}`, {
+      method:  'DELETE',
       headers: stokHeaders(),
     });
 
-    const result = await res.json();
+    const result = await res.json().catch(() => ({}));
 
     if (!res.ok) {
       const msg = result.errors
         ? Object.values(result.errors).flat().join('\n')
         : (result.message || 'Gagal menghapus bahan.');
+      closeDeleteStokModal();
       showStokMessage(msg, true);
-      alert(msg);
       return;
     }
 
+    closeDeleteStokModal();
     const successMsg = result.message || 'Bahan berhasil dihapus.';
     showStokMessage(successMsg, false);
     await loadAndRenderStok();
   } catch (err) {
+    closeDeleteStokModal();
     const errMsg = err.message || 'Terjadi kesalahan jaringan saat menghapus bahan.';
     showStokMessage(errMsg, true);
-    alert(errMsg);
+  } finally {
+    if (btnConfirm) {
+      btnConfirm.disabled = false;
+      btnConfirm.textContent = 'Ya, Hapus';
+    }
+    if (btnCancel) {
+      btnCancel.disabled = false;
+    }
   }
 }
 
@@ -447,3 +488,19 @@ function showStokMessage(msg, isError = false) {
   clearTimeout(el._timer);
   el._timer = setTimeout(() => { el.textContent = ''; }, 5000);
 }
+
+// Ekspor ke window agar dapat dipanggil dari event handler inline HTML
+window.renderStok = renderStok;
+window.loadAndRenderStok = loadAndRenderStok;
+window.openTambahStokModal = openTambahStokModal;
+window.openEditStokModal = openEditStokModal;
+window.closeStokItemModal = closeStokItemModal;
+window.saveInventoryItem = saveInventoryItem;
+window.confirmHapusBahan = confirmHapusBahan;
+window.closeDeleteStokModal = closeDeleteStokModal;
+window.executeDeleteStock = executeDeleteStock;
+window.openStockIn = openStockIn;
+window.closeStockIn = closeStockIn;
+window.confirmStockIn = confirmStockIn;
+window.quickStockOut = quickStockOut;
+window.toggleStokCustomDates = toggleStokCustomDates;

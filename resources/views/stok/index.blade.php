@@ -257,5 +257,35 @@
     </div>
 </div>
 
+{{-- Modal Konfirmasi Hapus Bahan/Barang --}}
+<div id="deleteStokModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) closeDeleteStokModal()">
+    <div class="modal-box" style="max-width:420px;text-align:center;">
+        <div class="modal-close" onclick="closeDeleteStokModal()">✕</div>
+
+        <div style="width:52px;height:52px;margin:0 auto 14px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#dc2626;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+        </div>
+
+        <h3 style="margin:0 0 10px;font-size:18px;font-weight:700;color:var(--ink, #1e293b);">Hapus Barang?</h3>
+
+        <p style="color:#64748b;font-size:14px;line-height:1.5;margin:0 0 22px;">
+            Apakah Anda yakin ingin menghapus barang <strong id="deleteStockItemName"></strong>?
+        </p>
+
+        <div style="display:flex;gap:10px;justify-content:center;">
+            <button type="button" class="btn btn-outline" id="btnCancelDeleteStock" style="width:auto;padding:8px 18px;" onclick="closeDeleteStokModal()">
+                Batal
+            </button>
+            <button type="button" class="btn btn-primary" id="btnConfirmDeleteStock" style="width:auto;padding:8px 18px;background:#dc2626;border-color:#dc2626;" onclick="executeDeleteStock()">
+                Ya, Hapus
+            </button>
+        </div>
+    </div>
+</div>
 
 @endsection
