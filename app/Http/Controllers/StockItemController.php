@@ -92,7 +92,7 @@ class StockItemController extends Controller
                 'max:35',
                 Rule::unique('stock_items', 'name'),
             ],
-            'unit' => 'required|in:gram,liter,pcs',
+            'unit' => 'required|in:gram,liter,pcs,ekor',
             'minimum_stock' => 'required|integer|min:0',
             'initial_stock' => 'required|integer|min:0',
             'description' => 'nullable|string|max:150',
@@ -161,7 +161,7 @@ class StockItemController extends Controller
                 'max:35',
                 Rule::unique('stock_items', 'name')->ignore($stockItem->id_stock_item, 'id_stock_item'),
             ],
-            'unit' => 'required|in:gram,liter,pcs',
+            'unit' => 'required|in:gram,liter,pcs,ekor',
             'minimum_stock' => 'required|integer|min:0',
             'description' => 'nullable|string|max:150',
         ], [
