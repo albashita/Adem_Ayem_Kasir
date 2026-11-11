@@ -179,7 +179,7 @@ Route::middleware('auth')->group(function () use ($role) {
         Route::delete('/pengeluaran/{expense}', [ExpenseController::class, 'destroy'])->name('pengeluaran.destroy');
     });
 
-    // Kasir saja (Riwayat dipindahkan ke sini)
+    // Kasir saja
     Route::group(['middleware' => [$role('kasir')]], function () {
         Route::get('/kasir', function () {
             return view('kasir.index', [
@@ -196,7 +196,7 @@ Route::middleware('auth')->group(function () use ($role) {
         Route::post('/kasir/orders', [OrderController::class, 'store'])
             ->name('kasir.orders.store');
 
-        // === Rute Riwayat yang dipindah ===
+        // Riwayat Transaksi
         Route::get('/riwayat', fn () => view('riwayat.index', ['pageKey' => 'riwayat']))
             ->name('riwayat.index');
         Route::get('/riwayat/data', [OrderController::class, 'history'])

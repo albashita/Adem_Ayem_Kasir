@@ -110,3 +110,44 @@
 .shell .sidebar .navbtn.logout {
   margin-top: auto;
 }
+
+/* ---------- Grup menu yang bisa dibuka-tutup (sidebar owner) ---------- */
+.shell .sidebar .navgroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shell .sidebar .navgroup .subnav {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.shell .sidebar .navgroup.open .subnav {
+  display: flex;
+}
+
+.shell .sidebar .group-head .caret {
+  margin-left: auto;
+  transition: transform .15s;
+}
+
+.shell .sidebar .navgroup.open .group-head .caret {
+  transform: rotate(180deg);
+}
+
+.shell .sidebar .navbtn.sub {
+  padding-left: 46px;
+  font-size: 13.5px;
+}
+
+.shell .sidebar .navbtn.disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.shell .sidebar .navbtn.disabled:hover {
+  background: transparent;
+  color: #E0F0E6;
+}   

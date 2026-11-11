@@ -68,7 +68,7 @@ class ExpenseController extends Controller
         $totalAmount = (float) $expenses->sum('amount');
         $totalCount  = $expenses->count();
 
-        $data = $expenses->map(function ($item, $index) {
+        $data = $expenses->map(function ($item) {
             return [
                 'id'           => $item->id_expense,
                 'expense_date' => Carbon::parse($item->expense_date)->format('Y-m-d'),

@@ -6,6 +6,7 @@
     'users.js',
     'menu.js',
     'stok.js',
+    'pengeluaran.js',
     'kasir.js',
     'payment.js',
     'riwayat.js',

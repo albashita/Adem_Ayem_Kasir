@@ -11,20 +11,17 @@ const LSL = 'kasir_stocklog';
 const LSI = 'kasir_inventory';
 const LSS = 'kasir_session';
 
-// Navigasi & Role
+// Navigasi & Role (urutan di sini = urutan menu di sidebar)
 const NAV = [
-  { key: 'dashboard', label: 'Dashboard', roles: ['superadmin', 'administrator'] },
-  
-  { key: 'pengguna', label: 'Pengguna & Akses', roles: ['superadmin'] },
-  { key: 'menu', label: 'Kelola Menu', roles: ['superadmin'] },
-
- 
-  { key: 'stok', label: 'Stok Barang', roles: ['administrator'] },
-  { key: 'pengeluaran', label: 'Pengeluaran', roles: ['administrator'] },
-  { key: 'kasir', label: 'Kasir', roles: ['kasir'] },
-  { key: 'riwayat', label: 'Transaksi Pembayaran', roles: ['kasir'] },
-  { key: 'laporan', label: 'Laporan', roles: ['superadmin', 'administrator', 'kasir'] },
-  { key: 'profil', label: 'Profil Saya', roles: ['superadmin', 'administrator', 'kasir'] }
+  { key: 'dashboard',   label: 'Dashboard',            roles: ['superadmin', 'administrator'] },
+  { key: 'pengguna',    label: 'Pengguna',             roles: ['superadmin'] },
+  { key: 'menu',        label: 'Kelola Menu',          roles: ['superadmin'] },
+  { key: 'stok',        label: 'Stok Barang',          roles: ['administrator'] },
+  { key: 'pengeluaran', label: 'Pengeluaran',          roles: ['administrator'] },
+  { key: 'kasir',       label: 'Kasir',                roles: ['kasir'] },
+  { key: 'riwayat',     label: 'Transaksi Pembayaran', roles: ['kasir'] },
+  { key: 'laporan',     label: 'Laporan',              roles: ['superadmin', 'administrator', 'kasir'] },
+  { key: 'profil',      label: 'Profil Saya',          roles: ['superadmin', 'administrator', 'kasir'] }
 ];
 
 const titles = {};
@@ -175,7 +172,7 @@ function navIcon(key) {
   return '<svg class="navico" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (NAV_ICONS[key] || '') + '</svg>';
 }
 
-// Membangun navigasi sidebar sesuai role
+// Membangun navigasi sidebar sesuai role (menu datar untuk semua role)
 function buildSidebar(role) {
   const nav = document.getElementById('sidebarNav');
   if (!nav) return;
@@ -191,7 +188,7 @@ function buildSidebar(role) {
     '<div class="rolechip" id="roleChip">' + escapeMenuHTML(ROLE_LABEL[role] || role) + '</div>';
 
   NAV.filter(n => n.roles.includes(role)).forEach(n => {
-    const label = (n.key === 'laporan' && role === 'administrator') ? 'Laporan Stok' : (n.short || n.label);
+    const label = (n.key === 'laporan' && role === 'administrator') ? 'Laporan Stok' : n.label;
     const active = n.key === PAGE_KEY;
     const a = document.createElement('a');
     a.className = 'navbtn' + (active ? ' active' : '');
