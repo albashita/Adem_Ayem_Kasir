@@ -215,7 +215,7 @@ function getStokFilterRange() {
 }
 
 // ─── Modal Tambah / Edit Bahan ────────────────────────────────────────────────
-const ALLOWED_UNITS = ['gram', 'liter', 'pcs'];
+const ALLOWED_UNITS = ['gram', 'liter', 'pcs', 'ekor'];
 
 function openTambahStokModal() {
   editingStokId = null;

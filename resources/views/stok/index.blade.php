@@ -281,6 +281,7 @@
                 <option value="gram">gram</option>
                 <option value="liter">liter</option>
                 <option value="pcs">pcs</option>
+                <option value="ekor">ekor</option>
             </select>
         </div>
 
@@ -292,7 +293,7 @@
 
         {{-- Hanya tampil saat tambah baru, disembunyikan saat edit --}}
         <div class="field" id="iInitialStockField">
-            <label for="iStock">Stok Awal</label>
+            <label for="iStock">Jumlah</label>
             <input id="iStock" type="number" min="0" step="1" placeholder="0">
         </div>
 

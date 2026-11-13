@@ -110,53 +110,43 @@ class MenuController extends Controller
     }
 
     public function destroy(Menu $menu)
-    {
-        return DB::transaction(function () use ($menu) {
-            // Cek apakah menu memiliki ketergantungan data transaksi atau riwayat produksi
-            $hasOrderItems = DB::table('order_items')
-                ->where('menus_id_menu', $menu->id_menu)
-                ->exists();
+{
+    return DB::transaction(function () use ($menu) {
+        // Cek apakah menu sudah pernah dipakai di pesanan
+        $hasOrderItems = DB::table('order_items')
+            ->where('menus_id_menu', $menu->id_menu)
+            ->exists();
 
-            $hasProductionDetails = DB::table('tr_production_details')
-                ->where('menus_id_menu', $menu->id_menu)
-                ->exists();
-
-            $hasSalesDetails = DB::table('tr_sales_details')
-                ->where('menus_id_menu', $menu->id_menu)
-                ->exists();
-
-            $hasHistoricalData = $hasOrderItems || $hasProductionDetails || $hasSalesDetails;
-
-            if ($hasHistoricalData) {
-                // Menu memiliki riwayat transaksi/produksi, nonaktifkan (soft deactivate) agar riwayat tidak rusak
-                $menu->update(['is_active' => false]);
-
-                return response()->json([
-                    'action' => 'deactivated',
-                    'message' => "Menu '{$menu->name}' telah memiliki riwayat transaksi/produksi, sehingga statusnya otomatis dinonaktifkan agar tidak merusak data historis.",
-                ]);
-            }
-
-            // Hapus seluruh relasi resep menu dari menu_ingredients
-            MenuIngredient::where('menus_id_menu', $menu->id_menu)->delete();
-
-            // Simpan path foto untuk dihapus setelah record database berhasil dihapus
-            $imagePath = $menu->image;
-
-            // Hapus data menu dari database
-            $menu->delete();
-
-            // Hapus file gambar jika ada
-            if ($imagePath && Storage::disk('public')->exists($imagePath)) {
-                Storage::disk('public')->delete($imagePath);
-            }
+        if ($hasOrderItems) {
+            // Menu memiliki riwayat transaksi, nonaktifkan agar riwayat tidak rusak
+            $menu->update(['is_active' => false]);
 
             return response()->json([
-                'action' => 'deleted',
-                'message' => 'Menu beserta resepnya berhasil dihapus.',
+                'action' => 'deactivated',
+                'message' => "Menu '{$menu->name}' telah memiliki riwayat transaksi, sehingga statusnya otomatis dinonaktifkan agar tidak merusak data historis.",
             ]);
-        });
-    }
+        }
+
+        // Hapus seluruh relasi resep menu dari menu_ingredients
+        MenuIngredient::where('menus_id_menu', $menu->id_menu)->delete();
+
+        // Simpan path foto untuk dihapus setelah record database berhasil dihapus
+        $imagePath = $menu->image;
+
+        // Hapus data menu dari database
+        $menu->delete();
+
+        // Hapus file gambar jika ada
+        if ($imagePath && Storage::disk('public')->exists($imagePath)) {
+            Storage::disk('public')->delete($imagePath);
+        }
+
+        return response()->json([
+            'action' => 'deleted',
+            'message' => 'Menu beserta resepnya berhasil dihapus.',
+        ]);
+    });
+}
 
     public function data()
     {
