@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\StockItem;
 use App\Models\StockMovement;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -295,34 +296,46 @@ class StockItemController extends Controller
     }
 
     /**
-     * Kurangi stok (stok keluar / koreksi).
-     * Body: quantity (int, min:1), description (opsional)
+     * Kurangi stok (terpakai/terjual, busuk/rusak, kadaluarsa, hilang, lainnya).
+     * Body: quantity (int, min:1),
+     *       source_type (used|spoiled|expired|lost|other),
+     *       description (opsional, wajib jika source_type = other)
      */
     public function stockOut(Request $request, StockItem $stockItem)
     {
         $validated = $request->validate([
             'quantity' => 'required|integer|min:1',
-            'description' => 'nullable|string|max:150',
+            'source_type' => 'required|in:used,spoiled,expired,lost,other',
+            'description' => 'nullable|string|max:150|required_if:source_type,other',
+        ], [
+            'description.required_if' => 'Keterangan wajib diisi untuk alasan "Lainnya".',
         ]);
 
-        if ($stockItem->current_stock < $validated['quantity']) {
-            return response()->json([
-                'message' => 'Stok tidak mencukupi. Stok saat ini: '.$stockItem->current_stock.' '.$stockItem->unit.'.',
-            ], 422);
+        try {
+            DB::transaction(function () use ($validated, $stockItem) {
+                // Kunci baris agar dua pengurangan bersamaan tidak membuat stok minus
+                $item = StockItem::whereKey($stockItem->id_stock_item)->lockForUpdate()->first();
+
+                if ($item->current_stock < $validated['quantity']) {
+                    throw new \RuntimeException(
+                        'Stok tidak mencukupi. Stok saat ini: '.$item->current_stock.' '.$item->unit.'.'
+                    );
+                }
+
+                $item->decrement('current_stock', $validated['quantity']);
+
+                StockMovement::create([
+                    'type' => 'out',
+                    'quantity' => $validated['quantity'],
+                    'source_type' => $validated['source_type'],
+                    'description' => $validated['description'] ?? null,
+                    'users_id_user' => Auth::id(),
+                    'stock_items_id_stock_item' => $item->id_stock_item,
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
         }
-
-        DB::transaction(function () use ($validated, $stockItem) {
-            $stockItem->decrement('current_stock', $validated['quantity']);
-
-            StockMovement::create([
-                'type' => 'out',
-                'quantity' => $validated['quantity'],
-                'source_type' => 'other',
-                'description' => $validated['description'] ?? 'Koreksi stok',
-                'users_id_user' => Auth::id(),
-                'stock_items_id_stock_item' => $stockItem->id_stock_item,
-            ]);
-        });
 
         return response()->json([
             'message' => 'Stok berhasil dikurangi.',

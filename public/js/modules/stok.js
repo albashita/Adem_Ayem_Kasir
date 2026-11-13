@@ -9,6 +9,7 @@ let stokData        = [];   // hasil fetch /stok/data
 let movementsData   = [];   // hasil fetch /stok/movements
 let editingStokId   = null; // id_stock_item yang sedang diedit
 let stockInId       = null; // id_stock_item yang akan ditambah stoknya
+let stockOutId      = null; // id_stock_item yang akan dikurangi stoknya
 let deletingStockId = null; // id_stock_item yang akan dihapus
 
 // ─── URL Helpers ──────────────────────────────────────────────────────────────
@@ -108,21 +109,28 @@ function renderStokTable() {
 
     return `<tr id="stockRow_${item.id_stock_item}">
       <td><strong>${escapeHTML(item.name)}</strong></td>
-      <td>
-        <div class="stock-adjust">
-          <button onclick="quickStockOut(${item.id_stock_item})">−</button>
-          <span class="val">${stock}</span>
-          <button onclick="openStockIn(${item.id_stock_item})">+</button>
-        </div>
-      </td>
+      <td><span class="val">${stock}</span></td>
       <td>${escapeHTML(item.unit)}</td>
       <td>${minSt}</td>
-      <td class="row-actions">
-        ${stockStatus}
-      </td>
-      <td class="row-actions" style="white-space:nowrap;">
-        <button type="button" class="btn-action-edit" onclick="openEditStokModal(${item.id_stock_item})">Ubah</button>
-        <button type="button" class="btn-action-delete" onclick="confirmHapusBahan(${item.id_stock_item})">Hapus</button>
+      <td class="cell-center">${stockStatus}</td>
+      <td class="aksi-cell">
+        <div class="aksi-group">
+          <button type="button" class="btn-icon btn-icon-add" title="Tambah stok" aria-label="Tambah stok"
+                  onclick="openStockIn(${item.id_stock_item})">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button type="button" class="btn-icon btn-icon-minus" title="Kurangi stok" aria-label="Kurangi stok"
+                  onclick="openStockOut(${item.id_stock_item})">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+          </button>
+          <button type="button" class="btn-action-edit" onclick="openEditStokModal(${item.id_stock_item})">Ubah</button>
+          <button type="button" class="btn-action-delete" onclick="confirmHapusBahan(${item.id_stock_item})">Hapus</button>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -130,9 +138,15 @@ function renderStokTable() {
 
 // ─── Render Tabel Riwayat ─────────────────────────────────────────────────────
 const SOURCE_LABEL = {
+  // stok masuk
   purchase: 'Pembelian',
   harvest:  'Panen',
   gift:     'Pemberian',
+  // stok keluar
+  used:     'Terpakai/terjual',
+  spoiled:  'Busuk/rusak',
+  expired:  'Kadaluarsa',
+  // umum
   other:    'Lainnya',
 };
 
@@ -148,7 +162,7 @@ function renderMovementsTable() {
   body.innerHTML = movementsData.map(m => {
     const dateStr = m.date ? new Date(m.date).toLocaleString('id-ID') : '-';
     const typeStr = m.type === 'in' ? 'Masuk' : 'Keluar';
-    const srcStr  = SOURCE_LABEL[m.source_type] || m.source_type;
+    const srcStr  = SOURCE_LABEL[m.source_type] || m.source_type || '-';
     return `<tr>
       <td>${dateStr}</td>
       <td>${escapeHTML(m.item_name)}</td>
@@ -217,6 +231,7 @@ function openTambahStokModal() {
   document.getElementById('iInitialStockField').style.display = '';
 
   document.getElementById('stokItemModal').style.display = 'flex';
+  document.getElementById('iName').focus();
 }
 
 function openEditStokModal(id) {
@@ -322,10 +337,6 @@ async function saveInventoryItem() {
   }
 }
 
-// ─── Ubah Status Bahan (Switch Toggle) ─────────────────────────────────────────
-// Fitur toggle status aktif/nonaktif telah dihapus.
-// Pengelolaan bahan hanya melalui Ubah (Edit) dan Hapus.
-
 // ─── Hapus Bahan ──────────────────────────────────────────────────────────────
 function confirmHapusBahan(id) {
   const item = stokData.find(i => Number(i.id_stock_item) === Number(id));
@@ -405,13 +416,13 @@ async function executeDeleteStock() {
   }
 }
 
-// ─── Stok Masuk ───────────────────────────────────────────────────────────────
+// ─── Stok Masuk (icon +) ──────────────────────────────────────────────────────
 function openStockIn(id) {
   const item = stokData.find(i => i.id_stock_item === id);
   if (!item) return;
 
   stockInId = id;
-  document.getElementById('stockInName').textContent   = `${item.name} (${item.unit})`;
+  document.getElementById('stockInName').textContent   = `${item.name} (stok: ${item.current_stock} ${item.unit})`;
   document.getElementById('stockInQty').value          = '1';
   document.getElementById('stockInSource').value       = 'purchase';
   document.getElementById('stockInDesc').value         = '';
@@ -430,11 +441,13 @@ async function confirmStockIn() {
   const source = document.getElementById('stockInSource').value;
   const desc   = document.getElementById('stockInDesc').value.trim();
   const errEl  = document.getElementById('stockInError');
+  const btn    = document.getElementById('stockInSaveBtn');
 
   errEl.textContent = '';
 
   if (!(qty > 0)) { errEl.textContent = 'Jumlah masuk harus lebih dari 0.'; return; }
 
+  btn.disabled = true;
   try {
     const res = await fetch(stokUrl('stock-in', stockInId), {
       method:  'POST',
@@ -442,40 +455,85 @@ async function confirmStockIn() {
       body:    JSON.stringify({ quantity: qty, source_type: source, description: desc || null }),
     });
     const result = await res.json();
-    if (!res.ok) { errEl.textContent = result.message || 'Gagal menambah stok.'; return; }
+    if (!res.ok) {
+      errEl.textContent = result.errors
+        ? Object.values(result.errors).flat().join('\n')
+        : (result.message || 'Gagal menambah stok.');
+      return;
+    }
 
     closeStockIn();
     showStokMessage(result.message || 'Stok berhasil ditambahkan.');
     await loadAndRenderStok();
   } catch (err) {
     errEl.textContent = err.message || 'Terjadi kesalahan jaringan.';
+  } finally {
+    btn.disabled = false;
   }
 }
 
-// ─── Quick Stock Out (tombol −) ───────────────────────────────────────────────
-async function quickStockOut(id) {
+// ─── Stok Keluar (icon −) ─────────────────────────────────────────────────────
+function openStockOut(id) {
   const item = stokData.find(i => i.id_stock_item === id);
   if (!item) return;
-  if (item.current_stock <= 0) {
+  if (Number(item.current_stock) <= 0) {
     showStokMessage('Stok sudah habis, tidak bisa dikurangi.', true);
     return;
   }
 
+  stockOutId = id;
+  document.getElementById('stockOutName').textContent  = `${item.name} (stok: ${item.current_stock} ${item.unit})`;
+  document.getElementById('stockOutQty').value         = '1';
+  document.getElementById('stockOutQty').max           = item.current_stock;
+  document.getElementById('stockOutReason').value      = 'used';
+  document.getElementById('stockOutDesc').value        = '';
+  document.getElementById('stockOutError').textContent = '';
+  document.getElementById('stockOutModal').style.display = 'flex';
+  document.getElementById('stockOutQty').focus();
+}
+
+function closeStockOut() {
+  document.getElementById('stockOutModal').style.display = 'none';
+  stockOutId = null;
+}
+
+async function confirmStockOut() {
+  const item   = stokData.find(i => i.id_stock_item === stockOutId);
+  const qty    = parseInt(document.getElementById('stockOutQty').value, 10);
+  const reason = document.getElementById('stockOutReason').value;
+  const desc   = document.getElementById('stockOutDesc').value.trim();
+  const errEl  = document.getElementById('stockOutError');
+  const btn    = document.getElementById('stockOutSaveBtn');
+
+  errEl.textContent = '';
+
+  if (!item) return;
+  if (!(qty > 0))                  { errEl.textContent = 'Jumlah harus lebih dari 0.'; return; }
+  if (qty > item.current_stock)    { errEl.textContent = `Jumlah melebihi stok (${item.current_stock}).`; return; }
+  if (reason === 'other' && !desc) { errEl.textContent = 'Keterangan wajib diisi untuk alasan "Lainnya".'; return; }
+
+  btn.disabled = true;
   try {
-    const res = await fetch(stokUrl('stock-out', id), {
+    const res = await fetch(stokUrl('stock-out', stockOutId), {
       method:  'POST',
       headers: stokHeaders(),
-      body:    JSON.stringify({ quantity: 1, description: 'Koreksi stok' }),
+      body:    JSON.stringify({ quantity: qty, source_type: reason, description: desc || null }),
     });
     const result = await res.json();
     if (!res.ok) {
-      showStokMessage(result.message || 'Gagal mengurangi stok.', true);
+      errEl.textContent = result.errors
+        ? Object.values(result.errors).flat().join('\n')
+        : (result.message || 'Gagal mengurangi stok.');
       return;
     }
+
+    closeStockOut();
     showStokMessage(result.message || 'Stok berhasil dikurangi.');
     await loadAndRenderStok();
   } catch (err) {
-    showStokMessage(err.message || 'Terjadi kesalahan jaringan.', true);
+    errEl.textContent = err.message || 'Terjadi kesalahan jaringan.';
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -488,6 +546,15 @@ function showStokMessage(msg, isError = false) {
   clearTimeout(el._timer);
   el._timer = setTimeout(() => { el.textContent = ''; }, 5000);
 }
+
+// ─── Tutup semua modal dengan tombol Esc ──────────────────────────────────────
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape' || !stokPage()) return;
+  closeStokItemModal();
+  closeStockIn();
+  closeStockOut();
+  closeDeleteStokModal();
+});
 
 // Ekspor ke window agar dapat dipanggil dari event handler inline HTML
 window.renderStok = renderStok;
@@ -502,5 +569,7 @@ window.executeDeleteStock = executeDeleteStock;
 window.openStockIn = openStockIn;
 window.closeStockIn = closeStockIn;
 window.confirmStockIn = confirmStockIn;
-window.quickStockOut = quickStockOut;
+window.openStockOut = openStockOut;
+window.closeStockOut = closeStockOut;
+window.confirmStockOut = confirmStockOut;
 window.toggleStokCustomDates = toggleStokCustomDates;

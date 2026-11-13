@@ -16,6 +16,7 @@
     <button class="cat-tab active" data-f="semua" onclick="setHistFilter('semua')">Semua Transaksi</button>
     <button class="cat-tab" data-f="belum" onclick="setHistFilter('belum')">Menunggu Pembayaran</button>
     <button class="cat-tab" data-f="sudah" onclick="setHistFilter('sudah')">Berhasil Dibayar</button>
+    <button class="cat-tab" data-f="batal" onclick="setHistFilter('batal')">Dibatalkan</button>
   </div>
 
   {{-- Area Filter dan Pencarian Berlabel Eksplisit --}}
@@ -168,6 +169,58 @@
       <button type="button" class="btn btn-outline" style="flex:1;" onclick="closePaymentModal()">Batal</button>
       <button type="button" class="btn btn-primary" id="payConfirmBtn" style="flex:2;" onclick="confirmPayOrder()">
         Konfirmasi & Cetak Struk
+      </button>
+    </div>
+  </div>
+</div>
+
+{{-- Modal Batalkan Pesanan (yang sudah dibayar) --}}
+<div id="cancelOrderModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) closeCancelOrder()">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-close" onclick="closeCancelOrder()">✕</div>
+
+    <h3 style="margin:0 0 4px;">Batalkan Pesanan</h3>
+    <div id="cancelOrderInfo" style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:14px;"></div>
+
+    <div class="field">
+      <label for="cancelReason">Alasan</label>
+      <select id="cancelReason" style="width:100%;padding:9px 12px;border:1px solid #d5ded8;border-radius:8px;background:white;">
+        <option value="customer_cancel">Pelanggan batal</option>
+        <option value="wrong_input">Salah input</option>
+        <option value="menu_unavailable">Menu habis</option>
+        <option value="other">Lainnya</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="cancelNote">Keterangan (wajib jika "Lainnya")</label>
+      <input id="cancelNote" type="text" maxlength="150" placeholder="Contoh: pelanggan pindah meja, pesan ulang">
+    </div>
+
+    <div class="field">
+      <label for="cancelRefund">Pengembalian uang</label>
+      <select id="cancelRefund" style="width:100%;padding:9px 12px;border:1px solid #d5ded8;border-radius:8px;background:white;">
+        <option value="cash">Tunai</option>
+        <option value="transfer">Transfer / QRIS</option>
+        <option value="none">Tidak dikembalikan</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="cancelRestoreStock">Kembalikan stok bahan?</label>
+      <select id="cancelRestoreStock" style="width:100%;padding:9px 12px;border:1px solid #d5ded8;border-radius:8px;background:white;">
+        <option value="1">Ya, makanan belum dimasak</option>
+        <option value="0">Tidak, makanan sudah dimasak</option>
+      </select>
+    </div>
+
+    <div class="error-msg" id="cancelOrderError" style="margin-bottom:10px;"></div>
+
+    <div class="form-row" style="gap:10px;">
+      <button type="button" class="btn btn-outline" style="flex:1;" onclick="closeCancelOrder()">Kembali</button>
+      <button type="button" class="btn btn-primary" id="cancelConfirmBtn"
+              style="flex:1;background:#dc2626;border-color:#dc2626;" onclick="confirmCancelOrder()">
+        Batalkan Pesanan
       </button>
     </div>
   </div>

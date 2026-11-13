@@ -203,6 +203,8 @@ Route::middleware('auth')->group(function () use ($role) {
             ->name('riwayat.data');
         Route::post('/riwayat/{id}/pay', [OrderController::class, 'pay'])
             ->name('riwayat.pay');
+        Route::post('/riwayat/{id}/cancel', [OrderController::class, 'cancel'])
+    ->name('riwayat.cancel');
     });
 
     // Semua role yang sudah login

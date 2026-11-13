@@ -1,7 +1,7 @@
 /**
  * Adem Ayem - Riwayat Transaksi & Pembayaran Module
  * Mengelola filter transaksi, rincian pembayaran, pengurangan stok otomatis di backend,
- * dan pencetakan struk transaksi.
+ * pembatalan pesanan yang sudah dibayar, dan pencetakan struk transaksi.
  */
 
 let histOrders = [];
@@ -27,6 +27,15 @@ const PAY_METHOD_NAMES = {
   transfer: 'Transfer Bank',
   tunai: 'Tunai'
 };
+
+const CANCEL_REASON_LABEL = {
+  customer_cancel:  'Pelanggan batal',
+  wrong_input:      'Salah input',
+  menu_unavailable: 'Menu habis',
+  other:            'Lainnya'
+};
+
+let cancelingOrder = null;
 
 // Helper modal alert
 function triggerHistAlert(message, title = 'Perhatian') {
@@ -142,6 +151,7 @@ function getFilteredHistory() {
     // Filter status tab
     if (histFilter === 'belum' && o.status !== 'pending') return false;
     if (histFilter === 'sudah' && o.status !== 'completed') return false;
+    if (histFilter === 'batal' && o.status !== 'cancelled') return false;
 
     // Filter tipe layanan
     if (tipe && o.service_type !== tipe) return false;
@@ -189,20 +199,28 @@ function renderHistory() {
   histBody.innerHTML = list.map(o => {
     const isTakeaway = o.service_type === 'takeaway';
     const isCompleted = o.status === 'completed';
+    const isCancelled = o.status === 'cancelled';
 
     const serviceBadge = `<span class="badge ${isTakeaway ? 'badge-take' : 'badge-dine'}">${isTakeaway ? 'Bawa Pulang' : 'Makan di Tempat'}</span>`;
 
-    const statusBadge = isCompleted
-      ? `<span class="badge badge-paid">Sudah Bayar</span>`
-      : `<span class="badge badge-unpaid">Menunggu Pembayaran</span>`;
+    const statusBadge = isCancelled
+      ? `<span class="badge badge-unpaid" style="background:#fee2e2;color:#dc2626;">Dibatalkan</span>`
+      : isCompleted
+        ? `<span class="badge badge-paid">Sudah Bayar</span>`
+        : `<span class="badge badge-unpaid">Menunggu Pembayaran</span>`;
 
-    const methodLabel = isCompleted && o.payment_method
+    const methodLabel = (isCompleted || isCancelled) && o.payment_method
       ? `<span class="pay-method-badge">${PAY_METHOD_NAMES[o.payment_method] || escapeMenuHTML(o.payment_method)}</span>`
       : `<span style="color:var(--muted);">-</span>`;
 
-    const actionBtn = !isCompleted
-      ? `<button class="btn btn-primary btn-compact" onclick="openPayOrder(${o.id})" title="Proses pembayaran pesanan ini">Bayar</button>`
-      : `<button class="btn btn-outline btn-compact" onclick="showOrderReceipt(${o.id})" title="Lihat struk pembayaran">Struk</button>`;
+    const actionBtn = isCancelled
+      ? `<span style="color:var(--muted);font-size:12px;" title="${escapeMenuHTML(o.cancel_note || '')}">${CANCEL_REASON_LABEL[o.cancel_reason] || '-'}</span>`
+      : isCompleted
+        ? `<div style="display:flex;gap:6px;justify-content:center;">
+             <button class="btn btn-outline btn-compact" onclick="showOrderReceipt(${o.id})" title="Lihat struk pembayaran">Struk</button>
+             <button class="btn btn-compact" style="background:#fff5f5;border:1px solid #fca5a5;color:#dc2626;" onclick="openCancelOrder(${o.id})" title="Batalkan pesanan ini">Batalkan</button>
+           </div>`
+        : `<button class="btn btn-primary btn-compact" onclick="openPayOrder(${o.id})" title="Proses pembayaran pesanan ini">Bayar</button>`;
 
     const dateFormatted = new Date(o.date).toLocaleDateString('id-ID', {
       day: 'numeric',
@@ -218,7 +236,7 @@ function renderHistory() {
         <td style="font-weight:600;font-family:monospace;letter-spacing:0.5px;">${escapeMenuHTML(o.no)}</td>
         <td>${escapeMenuHTML(o.customer || 'Umum')}</td>
         <td>${serviceBadge}</td>
-        <td style="font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums;">${rupiah(o.total)}</td>
+        <td style="font-weight:700;color:var(--brand);font-variant-numeric:tabular-nums;${isCancelled ? 'text-decoration:line-through;opacity:.6;' : ''}">${rupiah(o.total)}</td>
         <td>${methodLabel}</td>
         <td>${statusBadge}</td>
         <td class="row-actions" style="text-align:center;">${actionBtn}</td>
@@ -368,6 +386,85 @@ async function confirmPayOrder() {
   }
 }
 
+// ─── Batalkan pesanan yang sudah dibayar ─────────────────────────────────────
+function openCancelOrder(id) {
+  cancelingOrder = histOrders.find(o => o.id === id);
+  if (!cancelingOrder) return;
+
+  document.getElementById('cancelOrderInfo').textContent =
+    `${cancelingOrder.no} · ${cancelingOrder.customer || 'Umum'} · ${rupiah(cancelingOrder.total)}`;
+  document.getElementById('cancelReason').value = 'customer_cancel';
+  document.getElementById('cancelNote').value = '';
+  document.getElementById('cancelRefund').value =
+    cancelingOrder.payment_method === 'cash' ? 'cash' : 'transfer';
+  document.getElementById('cancelRestoreStock').value = '1';
+  document.getElementById('cancelOrderError').textContent = '';
+  document.getElementById('cancelOrderModal').style.display = 'flex';
+}
+
+function closeCancelOrder() {
+  document.getElementById('cancelOrderModal').style.display = 'none';
+  cancelingOrder = null;
+}
+
+async function confirmCancelOrder() {
+  if (!cancelingOrder) return;
+
+  const reason  = document.getElementById('cancelReason').value;
+  const note    = document.getElementById('cancelNote').value.trim();
+  const refund  = document.getElementById('cancelRefund').value;
+  const restore = document.getElementById('cancelRestoreStock').value === '1';
+  const errEl   = document.getElementById('cancelOrderError');
+  const btn     = document.getElementById('cancelConfirmBtn');
+
+  errEl.textContent = '';
+  if (reason === 'other' && !note) {
+    errEl.textContent = 'Keterangan wajib diisi untuk alasan "Lainnya".';
+    return;
+  }
+
+  btn.disabled = true;
+  try {
+    const page = document.getElementById('riwayatPage');
+    const base = page?.dataset.payUrl || '/riwayat';
+    const res = await fetch(base + '/' + cancelingOrder.id + '/cancel', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'X-CSRF-TOKEN': CSRF_TOKEN,
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: JSON.stringify({
+        reason,
+        note: note || null,
+        refund_method: refund,
+        restore_stock: restore
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      errEl.textContent = data.errors
+        ? Object.values(data.errors).flat().join('\n')
+        : (data.message || 'Gagal membatalkan pesanan.');
+      return;
+    }
+
+    closeCancelOrder();
+    await loadHistory();
+    triggerHistAlert(data.message || 'Pesanan berhasil dibatalkan.', 'Berhasil');
+
+    if (typeof refreshStockEstimates === 'function') {
+      refreshStockEstimates();
+    }
+  } catch (e) {
+    errEl.textContent = 'Terjadi kesalahan jaringan: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // Ekspor ke window agar dapat dipanggil dari app.js / core.js
 window.loadHistory = loadHistory;
 window.renderHistory = renderHistory;
@@ -377,6 +474,9 @@ window.onDateFilterChange = onDateFilterChange;
 window.openPayOrder = openPayOrder;
 window.confirmPayOrder = confirmPayOrder;
 window.showOrderReceipt = showOrderReceipt;
+window.openCancelOrder = openCancelOrder;
+window.closeCancelOrder = closeCancelOrder;
+window.confirmCancelOrder = confirmCancelOrder;
 
 // Cetak struk lewat iframe tersembunyi (hanya struk + QR yang tercetak)
 document.addEventListener('DOMContentLoaded', function () {

@@ -52,6 +52,7 @@
     color: #3E7A52;
 }
 
+/* Tombol teks (Ubah / Hapus) */
 .btn-action-edit {
     padding: 6px 12px;
     border: 1px solid #d5ded8;
@@ -82,6 +83,90 @@
     background: #fee2e2;
     border-color: #ef4444;
 }
+
+/* Kolom tengah (Status & Aksi) */
+.cell-center,
+.aksi-cell,
+.th-center {
+    text-align: center;
+}
+.aksi-group {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+/* Tombol icon (Tambah / Kurangi) */
+.btn-icon {
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-icon-add {
+    border: 1px solid #bbf7d0;
+    background: #f0fdf4;
+    color: #166534;
+}
+.btn-icon-add:hover {
+    background: #dcfce7;
+    border-color: #4ade80;
+}
+.btn-icon-minus {
+    border: 1px solid #fed7aa;
+    background: #fff7ed;
+    color: #c2410c;
+}
+.btn-icon-minus:hover {
+    background: #ffedd5;
+    border-color: #fb923c;
+}
+
+/* Gaya seragam semua modal */
+.modal-head {
+    text-align: center;
+    margin-bottom: 18px;
+}
+.modal-icon {
+    width: 52px;
+    height: 52px;
+    margin: 0 auto 12px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.modal-icon-green  { background: #dcfce7; color: #166534; }
+.modal-icon-orange { background: #ffedd5; color: #c2410c; }
+.modal-icon-red    { background: #fee2e2; color: #dc2626; }
+.modal-head h3 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink, #1e293b);
+}
+.modal-sub {
+    margin-top: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #64748b;
+}
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 18px;
+}
+.modal-actions .btn {
+    width: auto;
+    padding: 8px 18px;
+}
 </style>
 
 {{-- Daftar bahan baku --}}
@@ -106,8 +191,8 @@
                     <th>Stok</th>
                     <th>Satuan</th>
                     <th>Min. Stok</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
+                    <th class="th-center">Status</th>
+                    <th class="th-center">Aksi</th>
                 </tr>
             </thead>
             <tbody id="stokStatusBody">
@@ -168,11 +253,20 @@
 </div>
 
 {{-- Modal tambah / ubah bahan --}}
-<div id="stokItemModal" class="modal-overlay" style="display:none;">
+<div id="stokItemModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) closeStokItemModal()">
     <div class="modal-box">
         <div class="modal-close" onclick="closeStokItemModal()">✕</div>
 
-        <h3 id="stokFormTitle" style="margin-top:0;">Tambah Bahan Baru</h3>
+        <div class="modal-head">
+            <div class="modal-icon modal-icon-green">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+            </div>
+            <h3 id="stokFormTitle">Tambah Bahan Baru</h3>
+        </div>
 
         <div class="field">
             <label for="iName">Nama Bahan <span style="color:var(--danger)">*</span></label>
@@ -210,22 +304,28 @@
 
         <div id="stokItemError" class="error-msg" style="margin-bottom:10px;"></div>
 
-        <button type="button" class="btn btn-primary"
-                id="iSaveBtn" onclick="saveInventoryItem()">
-            Simpan
-        </button>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-outline" onclick="closeStokItemModal()">Batal</button>
+            <button type="button" class="btn btn-primary" id="iSaveBtn" onclick="saveInventoryItem()">Simpan</button>
+        </div>
     </div>
 </div>
 
 {{-- Modal stok masuk --}}
-<div id="stockInModal" class="modal-overlay" style="display:none;">
+<div id="stockInModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) closeStockIn()">
     <div class="modal-box">
         <div class="modal-close" onclick="closeStockIn()">✕</div>
 
-        <h3 style="margin-top:0;">Tambah Stok Masuk</h3>
-
-        <div id="stockInName"
-             style="font-size:14px;font-weight:600;margin-bottom:14px;"></div>
+        <div class="modal-head">
+            <div class="modal-icon modal-icon-green">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </div>
+            <h3>Tambah Stok</h3>
+            <div id="stockInName" class="modal-sub"></div>
+        </div>
 
         <div class="field">
             <label for="stockInQty">Jumlah Masuk <span style="color:var(--danger)">*</span></label>
@@ -245,15 +345,62 @@
 
         <div class="field">
             <label for="stockInDesc">Keterangan (opsional)</label>
-            <input id="stockInDesc" type="text" maxlength="150" placeholder="">
+            <input id="stockInDesc" type="text" maxlength="150" placeholder="Contoh: beli di pasar pagi">
         </div>
 
         <div class="error-msg" id="stockInError"></div>
 
-        <button type="button" class="btn btn-primary"
-                onclick="confirmStockIn()">
-            Simpan Stok Masuk
-        </button>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-outline" onclick="closeStockIn()">Batal</button>
+            <button type="button" class="btn btn-primary" id="stockInSaveBtn" onclick="confirmStockIn()">Simpan</button>
+        </div>
+    </div>
+</div>
+
+{{-- Modal stok keluar (kurangi stok) --}}
+<div id="stockOutModal" class="modal-overlay" style="display:none;" onclick="if(event.target === this) closeStockOut()">
+    <div class="modal-box">
+        <div class="modal-close" onclick="closeStockOut()">✕</div>
+
+        <div class="modal-head">
+            <div class="modal-icon modal-icon-orange">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+            </div>
+            <h3>Kurangi Stok</h3>
+            <div id="stockOutName" class="modal-sub"></div>
+        </div>
+
+        <div class="field">
+            <label for="stockOutQty">Jumlah Dikurangi <span style="color:var(--danger)">*</span></label>
+            <input id="stockOutQty" type="number" min="1" step="1" placeholder="1">
+        </div>
+
+        <div class="field">
+            <label for="stockOutReason">Alasan</label>
+            <select id="stockOutReason"
+                    style="width:100%;padding:9px 12px;border:1px solid #d5ded8;border-radius:8px;background:white;">
+                <option value="used">Terpakai/terjual</option>
+                <option value="spoiled">Busuk/rusak</option>
+                <option value="expired">Kadaluarsa</option>
+                <option value="other">Lainnya</option>
+            </select>
+        </div>
+
+        <div class="field">
+            <label for="stockOutDesc">Keterangan (wajib jika "Lainnya")</label>
+            <input id="stockOutDesc" type="text" maxlength="150"
+                   placeholder="Contoh: gurame busuk sebelum terjual">
+        </div>
+
+        <div class="error-msg" id="stockOutError"></div>
+
+        <div class="modal-actions">
+            <button type="button" class="btn btn-outline" onclick="closeStockOut()">Batal</button>
+            <button type="button" class="btn btn-primary" id="stockOutSaveBtn"
+                    style="background:#c2410c;border-color:#c2410c;" onclick="confirmStockOut()">Simpan</button>
+        </div>
     </div>
 </div>
 
@@ -262,7 +409,7 @@
     <div class="modal-box" style="max-width:420px;text-align:center;">
         <div class="modal-close" onclick="closeDeleteStokModal()">✕</div>
 
-        <div style="width:52px;height:52px;margin:0 auto 14px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#dc2626;">
+        <div class="modal-icon modal-icon-red">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="3 6 5 6 21 6"></polyline>
                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
@@ -277,11 +424,12 @@
             Apakah Anda yakin ingin menghapus barang <strong id="deleteStockItemName"></strong>?
         </p>
 
-        <div style="display:flex;gap:10px;justify-content:center;">
-            <button type="button" class="btn btn-outline" id="btnCancelDeleteStock" style="width:auto;padding:8px 18px;" onclick="closeDeleteStokModal()">
+        <div class="modal-actions" style="justify-content:center;margin-top:0;">
+            <button type="button" class="btn btn-outline" id="btnCancelDeleteStock" onclick="closeDeleteStokModal()">
                 Batal
             </button>
-            <button type="button" class="btn btn-primary" id="btnConfirmDeleteStock" style="width:auto;padding:8px 18px;background:#dc2626;border-color:#dc2626;" onclick="executeDeleteStock()">
+            <button type="button" class="btn btn-primary" id="btnConfirmDeleteStock"
+                    style="background:#dc2626;border-color:#dc2626;" onclick="executeDeleteStock()">
                 Ya, Hapus
             </button>
         </div>

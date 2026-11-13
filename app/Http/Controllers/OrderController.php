@@ -152,6 +152,10 @@ class OrderController extends Controller
             'tax' => $o->tax,
             'total' => $o->total,
             'status' => $o->status,
+            'cancelled_at' => $o->cancelled_at ? Carbon::parse($o->cancelled_at)->toIso8601String() : null,
+            'cancel_reason' => $o->cancel_reason,
+            'cancel_note' => $o->cancel_note,
+            'refund_method' => $o->refund_method,
             'payment_method' => $o->payment?->payment_method,
             'amount_paid' => $o->payment?->amount,
             'paid_at' => $o->payment?->paid_at ? Carbon::parse($o->payment->paid_at)->toIso8601String() : null,
@@ -286,6 +290,79 @@ class OrderController extends Controller
         });
 
         if ($result['status'] !== 'ok') {
+            return response()->json(['message' => $result['message']], 422);
+        }
+
+        return response()->json(['message' => $result['message']]);
+    }
+
+    /**
+     * Batalkan pesanan yang sudah dibayar.
+     * Data pembayaran tetap disimpan; status pesanan menjadi 'cancelled'.
+     * Stok dikembalikan (opsional) dari catatan pergerakan stok transaksi ini,
+     * sehingga jumlahnya sama persis dengan yang dikurangi saat pembayaran.
+     */
+    public function cancel(Request $request, $id)
+    {
+        $data = $request->validate([
+            'reason'        => 'required|in:customer_cancel,wrong_input,menu_unavailable,other',
+            'note'          => 'nullable|string|max:150|required_if:reason,other',
+            'refund_method' => 'required|in:cash,transfer,none',
+            'restore_stock' => 'required|boolean',
+        ], [
+            'note.required_if' => 'Keterangan wajib diisi untuk alasan "Lainnya".',
+        ]);
+
+        $result = DB::transaction(function () use ($id, $data) {
+            $order = Order::lockForUpdate()->findOrFail($id);
+
+            if ($order->status !== 'completed') {
+                return [
+                    'ok' => false,
+                    'message' => 'Hanya pesanan yang sudah dibayar yang dapat dibatalkan.',
+                ];
+            }
+
+            if ($data['restore_stock']) {
+                $movements = StockMovement::where('type', 'out')
+                    ->where('description', "Penjualan: {$order->invoice_number}")
+                    ->get();
+
+                foreach ($movements as $m) {
+                    $stockItem = StockItem::whereKey($m->stock_items_id_stock_item)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if (! $stockItem) {
+                        continue;
+                    }
+
+                    $stockItem->increment('current_stock', $m->quantity);
+
+                    StockMovement::create([
+                        'type' => 'in',
+                        'quantity' => $m->quantity,
+                        'source_type' => 'other',
+                        'description' => "Pembatalan: {$order->invoice_number}",
+                        'users_id_user' => Auth::id(),
+                        'stock_items_id_stock_item' => $stockItem->id_stock_item,
+                    ]);
+                }
+            }
+
+            $order->forceFill([
+                'status'        => 'cancelled',
+                'cancelled_at'  => now(),
+                'cancel_reason' => $data['reason'],
+                'cancel_note'   => $data['note'] ?? null,
+                'refund_method' => $data['refund_method'],
+                'cancelled_by'  => Auth::id(),
+            ])->save();
+
+            return ['ok' => true, 'message' => 'Pesanan berhasil dibatalkan.'];
+        });
+
+        if (! $result['ok']) {
             return response()->json(['message' => $result['message']], 422);
         }
 
